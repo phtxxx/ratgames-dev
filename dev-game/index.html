@@ -1,0 +1,10 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:;">
+<title>RAT Games DEV — Arena Local</title><link rel="stylesheet" href="./style.css"></head>
+<body><main class="app">
+<header><div><small>RAT GAMES · AMBIENTE DE DESENVOLVIMENTO</small><h1>🎯 Arena Local</h1><p>Jogo funcional offline para validar a execução no Electron</p></div><div class="stats"><div><span>Pontos</span><strong id="score">0</strong></div><div><span>Tempo</span><strong id="time">45</strong></div><div><span>Recorde</span><strong id="best">0</strong></div></div></header>
+<section class="toolbar"><button id="start">▶ Iniciar partida</button><button id="pause" disabled>⏸ Pausar</button><button id="reset">↻ Reiniciar</button><label>Dificuldade <select id="difficulty"><option value="easy">Fácil</option><option value="normal" selected>Normal</option><option value="hard">Difícil</option></select></label></section>
+<section id="arena" class="arena" tabindex="0" aria-label="Área do jogo"><div class="message" id="message"><h2>Pronto para jogar?</h2><p>Clique nos alvos antes que desapareçam. Alvos dourados valem mais pontos.</p><p>Pressione <kbd>Espaço</kbd> para começar.</p></div></section>
+<footer><span id="status" role="status">Aguardando início</span><span>Funciona sem internet · Sem autenticação · Nenhuma integração externa</span></footer>
+</main><script src="./game.js"></script></body></html>
