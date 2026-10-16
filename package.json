@@ -1,0 +1,16 @@
+{
+  "name": "ratgames",
+  "productName": "RatGames",
+  "version": "0.1.161",
+  "private": true,
+  "description": "RatGames: login, assinatura e os jogos de live do TikTok rodando sem nenhuma janela preta.",
+  "main": ".build-src/main.js",
+  "author": "RatGames",
+  "license": "UNLICENSED",
+  "dependencies": {
+    "electron-updater": "^6.8.9",
+    "tar": "^7.5.22",
+    "tiktok-live-connector": "^2.0.6",
+    "ws": "^8.18.0"
+  }
+}

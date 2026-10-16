@@ -1,0 +1,1708 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Músicas &amp; Danças — Avatares no Palco</title>
+<style>
+  /* A MESMA família visual do painel (/painel) — tudo local, sem CDN. */
+  :root {
+    --fundo: #0d1117; --cartao: #161b22; --borda: #2d333b;
+    --texto: #e6edf3; --texto2: #8b949e; --acento: #58a6ff;
+    --ok: #3fb950; --erro: #f85149; --moeda: #f0b72f; --rosa: #ff2d6f;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body { background: var(--fundo); color: var(--texto);
+    font: 14px/1.5 "Segoe UI", system-ui, sans-serif;
+    padding: 24px; max-width: 1180px; margin: 0 auto; }
+  h1 { font-size: 22px; margin-bottom: 4px; }
+  .sub { color: var(--texto2); margin-bottom: 16px; }
+  .sub a { color: var(--acento); text-decoration: none; }
+  h2 { font-size: 15px; color: var(--texto2); text-transform: uppercase;
+       letter-spacing: .08em; margin: 26px 0 10px; }
+  button { background: var(--acento); color: #04131f; border: 0; border-radius: 8px;
+    padding: 9px 18px; font-weight: 700; font-size: 14px; cursor: pointer; }
+  button:hover { filter: brightness(1.15); }
+  button.secundario { background: var(--cartao); color: var(--texto); border: 1px solid var(--borda); }
+  button.mini { background: transparent; color: var(--texto2); border: 1px solid var(--borda); padding: 4px 10px; font-size: 12px; }
+  button.mini:hover { color: var(--texto); }
+  button.mini.ligado { color: var(--ok); border-color: var(--ok); }
+  button.perigo { background: transparent; color: var(--erro); border: 1px solid var(--borda); padding: 4px 10px; font-size: 12px; }
+  button:disabled { opacity: .4; cursor: default; }
+  input[type=text], select {
+    background: var(--fundo); color: var(--texto); border: 1px solid var(--borda);
+    border-radius: 6px; padding: 6px 8px; font-size: 13px; width: 100%; }
+  input:focus, select:focus { outline: 1px solid var(--acento); }
+  #estado { color: var(--texto2); font-size: 12px; margin-left: auto; }
+  #estado.ok { color: var(--ok); }
+  #estado.erro { color: var(--erro); }
+  .topo { display: flex; align-items: baseline; gap: 14px; }
+
+  /* ── as duas buscas ── */
+  .buscas { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 900px) { .buscas { grid-template-columns: 1fr; } }
+  .caixaBusca { background: var(--cartao); border: 1px solid var(--borda);
+    border-radius: 12px; padding: 14px; position: relative; }
+  .caixaBusca .tit { font-weight: 700; font-size: 14px; margin-bottom: 2px; }
+  .caixaBusca .desc { color: var(--texto2); font-size: 11.5px; margin-bottom: 9px; }
+  .caixaBusca form { display: flex; gap: 8px; }
+  .resultados { position: absolute; top: 100%; left: 0; right: 0; z-index: 30;
+    background: var(--cartao); border: 1px solid var(--borda); border-radius: 10px;
+    max-height: 360px; overflow-y: auto; display: none; margin-top: 4px;
+    box-shadow: 0 10px 30px #0009; }
+  .resultados .item { display: flex; align-items: center; gap: 10px; padding: 8px 12px; cursor: pointer; }
+  .resultados .item:hover { background: #1f2630; }
+  .resultados img { width: 40px; height: 40px; object-fit: cover; border-radius: 6px; background: #0a0d12; flex: none; }
+  .resultados .nome { font-size: 13px; }
+  .resultados .extra { color: var(--texto2); font-size: 11px; }
+  .resultados .direita { margin-left: auto; color: var(--moeda); font-size: 12px; font-weight: 700; white-space: nowrap; }
+  .resultados .aviso { padding: 10px 12px; color: var(--texto2); font-size: 12px; }
+
+  /* ── a GRADE de danças (o catálogo) ── */
+  #gradeEmotes { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 12px; margin-top: 12px; }
+  .emoteCard { background: var(--cartao); border: 1px solid var(--borda); border-radius: 12px;
+    overflow: hidden; display: flex; flex-direction: column; transition: border-color .12s; }
+  .emoteCard:hover { border-color: var(--texto2); }
+  .emoteCard.selecionado { border-color: var(--acento); }
+  .emoteCard .foto { position: relative; aspect-ratio: 1; background: #0a0d12; }
+  .emoteCard .foto img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .emoteCard .cadeado, .emoteCard .jaTem { position: absolute; top: 6px; right: 6px;
+    background: #0a0d12cc; border-radius: 20px; padding: 2px 8px; font-size: 10.5px; font-weight: 700; }
+  .emoteCard .jaTem { color: var(--ok); }
+  .emoteCard .corpo { padding: 8px 10px 10px; display: flex; flex-direction: column; gap: 6px; flex: 1; }
+  .emoteCard .nome { font-size: 12.5px; font-weight: 600; line-height: 1.25;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .emoteCard .autor { color: var(--texto2); font-size: 10.5px; overflow: hidden;
+    text-overflow: ellipsis; white-space: nowrap; }
+  .emoteCard .preco { color: var(--ok); font-weight: 800; font-size: 13px; margin-top: auto; }
+  .emoteCard .preco.livre { color: var(--acento); }
+  .emoteCard .acoes { display: flex; gap: 6px; }
+  .emoteCard .acoes button { flex: 1; font-size: 11px; padding: 5px 4px; }
+  .gradeVazia { color: var(--texto2); font-style: italic; padding: 16px; text-align: center;
+    border: 1px dashed var(--borda); border-radius: 10px; margin-top: 12px; }
+  .cabGrade { display: flex; align-items: center; gap: 10px; margin-top: 16px; }
+  .cabGrade b { font-size: 13px; }
+  .cabGrade button { margin-left: auto; }
+  /* a oferta do pacote (todas as danças) */
+  #faixaPacote { display: flex; align-items: center; gap: 14px; margin-top: 10px;
+    background: linear-gradient(90deg, #1b2432, var(--cartao)); border: 1px solid var(--acento);
+    border-radius: 12px; padding: 12px 14px; }
+  #faixaPacote b { font-size: 14px; }
+  #faixaPacote .sub2 { color: var(--texto2); font-size: 11.5px; margin-top: 2px; }
+  #faixaPacote button { margin-left: auto; flex: none; }
+  /* a linha "ver todas" no fim da lista compacta */
+  .resultados .verTodas { padding: 9px 12px; text-align: center; cursor: pointer;
+    color: var(--acento); font-weight: 700; font-size: 12.5px; border-top: 1px solid var(--borda); }
+  .resultados .verTodas:hover { background: #1f2630; }
+  .resultados .item .selo { font-size: 10.5px; margin-left: 6px; }
+  .resultados .item .selo.livre { color: var(--ok); }
+
+  /* ── a caixa de compra (o QR, sem sair do painel) ── */
+  #caixaCompra { position: fixed; inset: 0; background: #000b; display: none;
+    align-items: center; justify-content: center; z-index: 100; padding: 20px; }
+  #caixaCompra.aberta { display: flex; }
+  #caixaCompra .cx { background: var(--cartao); border: 1px solid var(--borda);
+    border-radius: 16px; padding: 14px; width: 420px; max-width: 100%; }
+  #caixaCompra .cabCompra { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  #caixaCompra .cabCompra b { font-size: 14px; }
+  #caixaCompra .cabCompra button { margin-left: auto; }
+  /* A tela da LivePix inteira, dentro do painel. Alta o bastante pra caber o
+     QR + o copia-e-cola sem a pessoa ter que rolar dentro do iframe. */
+  #compraFrame { width: 100%; height: 560px; border: 0; border-radius: 10px; background: #fff; }
+  #caixaCompra .estado { font-size: 12px; color: var(--texto2); margin-top: 10px; min-height: 18px; text-align: center; }
+  #caixaCompra .estado.ok { color: var(--ok); font-weight: 700; font-size: 14px; }
+  #caixaCompra > .cx > button.mini { display: block; margin: 8px auto 0; }
+
+  /* ── o player ── */
+  #player { background: var(--cartao); border: 1px solid var(--borda); border-radius: 12px;
+    padding: 18px 16px 14px; margin-top: 16px; text-align: center; }
+  #player .agora { color: var(--texto2); font-size: 10.5px; letter-spacing: .22em; text-transform: uppercase; }
+  #tituloAtual { font-size: 17px; font-weight: 700; margin: 4px 0 4px; min-height: 24px; }
+  #dancaAtual { font-size: 11.5px; color: var(--texto2); min-height: 17px; }
+  #dancaAtual.ok { color: var(--ok); }
+  #dancaAtual.erro { color: var(--erro); }
+  .controles { display: flex; align-items: center; justify-content: center; gap: 10px; margin: 10px 0 4px; }
+  .controles button { border-radius: 50%; width: 40px; height: 40px; padding: 0;
+    background: var(--cartao); color: var(--texto); border: 1px solid var(--borda); font-size: 15px; }
+  .controles button#btTocar { width: 54px; height: 54px; background: var(--rosa); color: #fff; border: 0; font-size: 20px; }
+  .linhaTempo { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
+  .linhaTempo .t { color: var(--texto2); font-size: 11px; width: 42px; }
+  input[type=range] { flex: 1; accent-color: var(--rosa); height: 4px; }
+  .volume { display: flex; align-items: center; gap: 8px; justify-content: center; margin-top: 6px; }
+  .volume input { max-width: 160px; accent-color: var(--acento); }
+  .volume span { color: var(--texto2); font-size: 11px; }
+
+  /* ── a playlist ── */
+  #lista { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+  .faixa { display: grid; grid-template-columns: 26px 26px minmax(200px, 1.2fr) minmax(220px, 1fr) auto;
+    gap: 10px; align-items: center; background: var(--cartao);
+    border: 1px solid var(--borda); border-radius: 10px; padding: 8px 12px; }
+  .faixa.tocandoAgora { border-color: var(--rosa); }
+  .faixa .arrasta { color: var(--texto2); cursor: grab; text-align: center; user-select: none; }
+  .faixa .num { color: var(--texto2); font-size: 12px; text-align: right; }
+  .faixa .titulo { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .faixa .titulo .nome { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
+  .faixa.tocandoAgora .titulo .nome { color: var(--rosa); font-weight: 700; }
+  .faixa .titulo input { font-size: 13px; }
+  .faixa .emote { display: flex; align-items: center; gap: 6px; }
+  .faixa .emote .selo { font-size: 10.5px; white-space: nowrap; color: var(--texto2); }
+  .faixa .emote .selo.ok { color: var(--ok); }
+  .faixa .emote .selo.erro { color: var(--erro); cursor: help; }
+  .faixa .botoes { display: flex; gap: 6px; }
+  .vazio { color: var(--texto2); font-style: italic; padding: 18px; text-align: center;
+    border: 1px dashed var(--borda); border-radius: 10px; margin-top: 8px; }
+
+  /* adicionar por link */
+  .porLink { display: flex; gap: 8px; margin-top: 10px; }
+
+  /* ── Dance/Music Gifts ── */
+  .slots { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 10px; }
+  .slot { background: var(--cartao); border: 1px solid var(--borda); border-radius: 10px; padding: 10px 12px; }
+  .slot .tit { font-size: 12px; font-weight: 700; margin-bottom: 6px; }
+  .slot .tit small { color: var(--texto2); font-weight: 400; }
+  .slot .linha { display: flex; gap: 6px; margin-top: 6px; align-items: center; }
+  .slot img { width: 34px; height: 34px; object-fit: contain; border-radius: 6px; background: #0a0d12; flex: none; }
+  .slot img[src=""], .slot img:not([src]) { opacity: .25; }
+  .slot select { flex: 1; min-width: 0; }
+  /* O botão que abre o escolhedor de presente. Parece um select (pra ninguém
+     ter que aprender um controle novo), mas cabe foto e nome de verdade. */
+  .slot .escolher { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px;
+    background: var(--fundo2, #12161d); border: 1px solid var(--borda); color: var(--texto);
+    border-radius: 8px; padding: 7px 10px; font-size: 13px; cursor: pointer; text-align: left; }
+  .slot .escolher:hover { border-color: var(--texto2); }
+  .slot .escolher .nomeP { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .slot .escolher .nomeP.vazio2 { color: var(--texto2); }
+  .slot .escolher .seta { margin-left: auto; color: var(--texto2); flex: none; }
+  .slot .tit .x { float: right; cursor: pointer; color: var(--texto2); font-weight: 400; }
+  .slot .tit .x:hover { color: var(--erro); }
+  .slot.novo { border-style: dashed; display: flex; align-items: center; justify-content: center;
+    min-height: 132px; cursor: pointer; color: var(--texto2); font-size: 13px; }
+  .slot.novo:hover { border-color: var(--acento); color: var(--texto); }
+
+  /* ── o escolhedor de presente (foto + busca) ── */
+  #caixaPresente { position: fixed; inset: 0; background: #000b; display: none;
+    align-items: center; justify-content: center; z-index: 110; padding: 20px; }
+  #caixaPresente.aberta { display: flex; }
+  #caixaPresente .cx { background: var(--cartao); border: 1px solid var(--borda);
+    border-radius: 16px; padding: 14px; width: 460px; max-width: 100%;
+    display: flex; flex-direction: column; max-height: 80vh; }
+  #caixaPresente .cab { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  #caixaPresente .cab b { font-size: 14px; }
+  #caixaPresente .cab button { margin-left: auto; }
+  #caixaPresente input { width: 100%; }
+  #listaPresentes { overflow-y: auto; margin-top: 10px; }
+  #listaPresentes .item { display: flex; align-items: center; gap: 10px; padding: 7px 8px;
+    cursor: pointer; border-radius: 8px; }
+  #listaPresentes .item:hover { background: #1f2630; }
+  #listaPresentes .item.atual { background: #1f2630; outline: 1px solid var(--acento); }
+  #listaPresentes img { width: 36px; height: 36px; object-fit: contain; border-radius: 6px;
+    background: #0a0d12; flex: none; }
+  #listaPresentes .rot { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #listaPresentes .moedas { margin-left: auto; color: var(--moeda); font-size: 12px;
+    font-weight: 700; white-space: nowrap; }
+  #listaPresentes .aviso { padding: 10px; color: var(--texto2); font-size: 12px; }
+
+  /* ── o escolhedor de DANÇA da faixa (mesma casa do de presente) ── */
+  #caixaDanca { position: fixed; inset: 0; background: #000b; display: none;
+    align-items: center; justify-content: center; z-index: 110; padding: 20px; }
+  #caixaDanca.aberta { display: flex; }
+  #caixaDanca .cx { background: var(--cartao); border: 1px solid var(--borda);
+    border-radius: 16px; padding: 14px; width: 460px; max-width: 100%;
+    display: flex; flex-direction: column; max-height: 80vh; }
+  #caixaDanca .cab { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  #caixaDanca .cab b { font-size: 14px; }
+  #caixaDanca .cab button { margin-left: auto; }
+  #caixaDanca input { width: 100%; }
+  #caixaDanca > .cx > button.mini { margin-top: 10px; }
+  #listaDancas { overflow-y: auto; margin-top: 10px; }
+  #listaDancas .item { display: flex; align-items: center; gap: 10px; padding: 7px 8px;
+    cursor: pointer; border-radius: 8px; }
+  #listaDancas .item:hover { background: #1f2630; }
+  #listaDancas .item.atual { background: #1f2630; outline: 1px solid var(--acento); }
+  #listaDancas img, #listaDancas .semFoto { width: 40px; height: 40px; border-radius: 6px;
+    background: #0a0d12; flex: none; object-fit: cover; }
+  #listaDancas .semFoto { display: flex; align-items: center; justify-content: center; font-size: 16px; }
+  #listaDancas .rot { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #listaDancas .moedas { margin-left: auto; color: var(--texto2); font-size: 11px;
+    white-space: nowrap; flex: none; }
+  #listaDancas .aviso { padding: 10px; color: var(--texto2); font-size: 12px; }
+
+  /* o botão que abriu o lugar do antigo campo de ID, na linha da faixa */
+  .faixa .escolherDanca { display: flex; align-items: center; gap: 8px; min-width: 0;
+    background: var(--fundo2, #12161d); border: 1px solid var(--borda); color: var(--texto);
+    border-radius: 8px; padding: 5px 9px; font-size: 12.5px; cursor: pointer; text-align: left; }
+  .faixa .escolherDanca:hover { border-color: var(--texto2); }
+  .faixa .escolherDanca img { width: 26px; height: 26px; border-radius: 5px;
+    background: #0a0d12; object-fit: cover; flex: none; }
+  .faixa .escolherDanca img:not([src]) { opacity: .25; }
+  .faixa .escolherDanca .nomeD { overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    max-width: 180px; }
+  .faixa .escolherDanca .nomeD.vazio2 { color: var(--texto2); }
+  .faixa .escolherDanca .seta { color: var(--texto2); flex: none; }
+  .dica { color: var(--texto2); font-size: 12px; margin-top: 20px; }
+  .dica b { color: var(--texto); }
+  /* Embutida no shell do /painel (?embutido=1): o cabeçalho é do shell. */
+  body.embutido .topo h1, body.embutido > .sub { display: none; }
+  body.embutido { padding-top: 10px; }
+</style>
+</head>
+<body>
+  <script>if (new URLSearchParams(location.search).has("embutido")) document.body.classList.add("embutido");</script>
+  <div class="topo">
+    <h1>🎵 Músicas &amp; Danças</h1>
+    <span id="estado">carregando…</span>
+  </div>
+  <div class="sub">
+    Cada música da playlist é vinculada a um <b>emote do catálogo do Roblox</b>: quando ela toca,
+    a formação inteira dança a dança dela. Tudo salva sozinho.
+    &nbsp;·&nbsp; <a href="/painel" target="_blank">painel da live ↗</a>
+    &nbsp;·&nbsp; <a href="/avaliador.html" target="_blank">painel do avaliador ↗</a>
+  </div>
+
+  <div class="buscas">
+    <div class="caixaBusca">
+      <div class="tit">🔎 Buscar música no YouTube</div>
+      <div class="desc">Pesquisa e baixa o áudio direto pra playlist (também dá pra colar um link lá embaixo).</div>
+      <form id="formYt"><input type="text" id="qYt" placeholder="Ex.: chicken song"><button>Buscar</button></form>
+      <div class="resultados" id="resYt"></div>
+    </div>
+    <div class="caixaBusca">
+      <div class="tit">🕺 Buscar dança no catálogo do Roblox</div>
+      <div class="desc">As quatro do jogo são de graça; as do catálogo custam R$&nbsp;9,90, uma vez só.</div>
+      <form id="formEmote"><input type="text" id="qEmote" placeholder="Ex.: chicken dance"><button>Buscar</button></form>
+      <div class="resultados" id="resEmote"></div>
+    </div>
+  </div>
+
+  <div id="caixaGrade" hidden>
+    <div class="cabGrade">
+      <b id="gradeTitulo">Catálogo</b>
+      <button class="mini" id="fecharGrade">✕ fechar catálogo</button>
+    </div>
+    <div id="faixaPacote" hidden></div>
+    <div id="gradeEmotes"></div>
+  </div>
+
+  <div id="player">
+    <div class="agora">Now Playing</div>
+    <div id="tituloAtual">—</div>
+    <div id="dancaAtual"></div>
+    <div class="controles">
+      <button id="btAnterior" title="anterior">⏮</button>
+      <button id="btTocar" title="tocar/pausar">▶</button>
+      <button id="btProxima" title="próxima">⏭</button>
+    </div>
+    <div class="linhaTempo">
+      <span class="t" id="tDecorrido">0:00</span>
+      <input type="range" id="barra" min="0" max="1000" value="0">
+      <span class="t" id="tTotal">0:00</span>
+    </div>
+    <div class="volume">
+      <span>🔊</span><input type="range" id="volume" min="0" max="100" value="80"><span id="volPct">80%</span>
+    </div>
+  </div>
+
+  <h2>Playlist</h2>
+  <div id="lista"></div>
+  <div class="vazio" id="listaVazia" style="display:none">
+    A playlist está vazia — busque uma música lá em cima, ou cole um link do YouTube aqui embaixo.
+  </div>
+  <div class="porLink">
+    <input type="text" id="linkYt" placeholder="Colar link do YouTube (https://www.youtube.com/watch?v=…)">
+    <button id="btBaixar">Baixar</button>
+  </div>
+
+  <h2>🎁 Presente → música → dança</h2>
+  <div class="sub" style="margin-bottom:8px">É <b>aqui</b> que se monta o conjunto: o presente chega na live e
+    troca a música <i>e</i> a dança na hora. As quatro danças que já vêm no jogo estão na lista, e as que você
+    comprar aparecem junto. <b>Este é o lugar de configurar presente/música/dança</b> — no painel avançado ficam
+    só os outros efeitos do presente (tamanho, aura, cinemática).</div>
+  <div class="slots" id="slots"></div>
+
+  <div class="dica">
+    💡 O campo de cada faixa aceita o <b>link da loja</b> ou o <b>ID do emote</b>. Quem descobre a animação
+    de dentro do emote é o próprio jogo (precisa do Studio aberto com o jogo rodando) — na primeira vez que a
+    faixa tocar, a etiqueta vira <b style="color:var(--ok)">dança pronta</b> e fica salva pra sempre.
+  </div>
+
+  <div id="caixaCompra">
+    <div class="cx">
+      <div class="cabCompra">
+        <b id="compraNome">Desbloquear dança</b>
+        <button class="mini" id="compraFechar">✕</button>
+      </div>
+      <iframe id="compraFrame" title="pagamento"></iframe>
+      <div class="estado" id="compraEstado">esperando o pagamento…</div>
+      <button class="mini" id="compraAbrir">abrir no navegador</button>
+    </div>
+  </div>
+
+  <div id="caixaPresente">
+    <div class="cx">
+      <div class="cab">
+        <b>Escolher o presente</b>
+        <button class="mini" id="presenteFechar">✕</button>
+      </div>
+      <input id="presenteBusca" type="text" placeholder="🔍 nome do presente (rosa, galaxy…)" autocomplete="off">
+      <div id="listaPresentes"></div>
+    </div>
+  </div>
+
+  <div id="caixaDanca">
+    <div class="cx">
+      <div class="cab">
+        <b>Qual dança nesta música?</b>
+        <button class="mini" id="dancaFechar">✕</button>
+      </div>
+      <input id="dancaBusca" type="text" placeholder="🔍 nome da dança" autocomplete="off">
+      <div id="listaDancas"></div>
+      <button class="mini" id="dancaCatalogo">🔎 quero outra — abrir o catálogo</button>
+    </div>
+  </div>
+
+<script>
+"use strict";
+/* Os mesmos tokens do painel: locais, de 127.0.0.1 — quem está na máquina
+   já perdeu (ver src/relay/servidor.js). */
+const TOKEN_LEITURA = "pull-local";
+const TOKEN_ESCRITA = "push-local";
+
+const $ = (id) => document.getElementById(id);
+const estadoEl = $("estado");
+function estado(msg, classe) {
+  estadoEl.textContent = msg;
+  estadoEl.className = classe || "";
+}
+
+/* ───────────────────────── estado local ─────────────────────────
+   `dados` espelha o que o relay guarda ({faixas, slots, anims, pista}).
+   O relay é a fonte da verdade da PISTA (que faixa está no ar) — inclusive
+   porque um presente num slot troca a música por lá; este player só obedece. */
+let dados = { faixas: [], slots: [], anims: {}, pista: { faixa: "", tocando: false, em: 0 } };
+let presentes = []; // catálogo de gifts (imagem + moedas), pro seletor dos slots
+let faixaSelecionada = ""; // pra vincular emote clicado na busca
+/* O slot que está esperando resposta do escolhedor de presente. Declarado
+   aqui em cima, junto do resto do estado, porque `escrevendo()` o consulta —
+   e `escrevendo()` roda na primeira leitura, antes de o corpo da página
+   terminar de ser lido. */
+let escolhendoPara = null;
+/* A faixa esperando resposta do escolhedor de DANÇA. Aqui em cima pelo mesmo
+   motivo do de cima: `escrevendo()` o consulta. */
+let escolhendoDancaDe = null;
+let editandoTitulo = null;
+
+const audio = new Audio();
+audio.volume = 0.8;
+let tocandoArquivo = ""; // o arquivo carregado no <audio> agora
+
+/* ───────────────────────── conversas com o relay ───────────────────────── */
+async function lerTudo() {
+  const r = await fetch("/musicas/dados");
+  if (!r.ok) throw new Error("relay respondeu " + r.status);
+  const novo = await r.json();
+  /* NÃO puxa o tapete de quem está editando.
+     A playlist e os slots só voltam do relay quando não há escrita nossa em
+     voo. Sem esta trava existe uma corrida curta e cruel: a pessoa escolhe a
+     música, o salvar está agendado (350ms), o laço lê o relay ANTES dele
+     chegar e substitui `dados` pela versão antiga — e o salvar que dispara em
+     seguida publica justamente essa versão antiga, apagando a escolha que
+     acabou de ser feita. */
+  if (!escrevendo()) {
+    dados.faixas = novo.faixas || [];
+    dados.slots = novo.slots || [];
+  }
+  dados.anims = novo.anims || {};
+  dados.pista = novo.pista || { faixa: "", tocando: false, em: 0 };
+}
+
+/* Salva a playlist + slots. Debounce curto: arrastar 5 faixas não pode virar
+   5 POSTs — e o relay substitui tudo, então só o último importa. */
+let salvarAgendado = null;
+let escritaEmVoo = 0; // POSTs de playlist ainda sem resposta
+let salvouEm = 0; // quando a última escrita terminou
+
+/* Tem escrita nossa acontecendo agora? A folga de 1,2s cobre o intervalo
+   entre o relay responder "salvo" e o próximo GET já enxergar o novo estado. */
+function escrevendo() {
+  /* O escolhedor aberto conta como escrita: ele guarda a REFERÊNCIA de um
+     slot, e se o laço trocasse `dados.slots` no meio, a escolha iria parar
+     num objeto que ninguém mais desenha. */
+  return salvarAgendado !== null || escritaEmVoo > 0
+    || escolhendoPara !== null || escolhendoDancaDe !== null
+    || Date.now() - salvouEm < 1200;
+}
+
+function salvar() {
+  clearTimeout(salvarAgendado);
+  salvarAgendado = setTimeout(async () => {
+    salvarAgendado = null;
+    escritaEmVoo += 1;
+    try {
+      const r = await fetch("/musicas", {
+        method: "POST",
+        headers: { "content-type": "application/json", "x-token": TOKEN_ESCRITA },
+        body: JSON.stringify({ faixas: dados.faixas, slots: dados.slots }),
+      });
+      if (!r.ok) throw new Error((await r.json()).erro || r.status);
+      estado("salvo ✓", "ok");
+    } catch (e) {
+      estado("não salvou: " + e.message, "erro");
+    } finally {
+      escritaEmVoo -= 1;
+      salvouEm = Date.now();
+    }
+  }, 350);
+}
+
+async function mandarTocar(faixaId, tocando) {
+  try {
+    await fetch("/musicas/tocar", {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-token": TOKEN_ESCRITA },
+      body: JSON.stringify({ faixa: faixaId, tocando }),
+    });
+  } catch { /* o próximo poll realinha */ }
+  // Aplica localmente sem esperar o poll — o clique tem que responder já.
+  dados.pista = { faixa: tocando ? faixaId : faixaId, tocando: !!tocando && !!faixaId, em: Date.now() };
+  aplicarPista(true);
+  desenharLista();
+}
+
+/* ───────────────────────── o player ─────────────────────────
+   Quem TOCA o áudio é esta página (a mesma razão do avaliador: som do
+   Studio só sai com a janela em foco — ver avaliador.html). O relay diz o
+   QUE tocar; o <audio> daqui obedece. */
+function faixaDaPista() {
+  return dados.faixas.find((f) => f.id === dados.pista.faixa) || null;
+}
+
+function aplicarPista(veioDeClique) {
+  const f = faixaDaPista();
+  $("tituloAtual").textContent = f ? f.titulo : "—";
+  desenharDancaAtual(f);
+  if (!f || !dados.pista.tocando) {
+    audio.pause();
+    $("btTocar").textContent = "▶";
+    return;
+  }
+  const url = "/audios/" + encodeURIComponent(f.arquivo);
+  if (tocandoArquivo !== f.arquivo) {
+    tocandoArquivo = f.arquivo;
+    audio.src = url;
+    /* Entrando atrasado (a música começou por um presente com a página
+       recém-aberta): entra no ponto em que ela já está, não do zero. */
+    const atraso = (Date.now() - (dados.pista.em || Date.now())) / 1000;
+    if (!veioDeClique && atraso > 2) {
+      audio.currentTime = atraso;
+    }
+  }
+  audio.play().then(() => {
+    $("btTocar").textContent = "⏸";
+  }).catch(() => {
+    // Navegador bloqueou autoplay (fora do launcher): pede UM clique.
+    $("btTocar").textContent = "▶";
+    estado("clique em ▶ pra liberar o áudio", "erro");
+  });
+}
+
+function desenharDancaAtual(f) {
+  const el = $("dancaAtual");
+  if (!f) { el.textContent = ""; el.className = ""; return; }
+  if (!f.emote) { el.textContent = "sem dança vinculada — a formação segue na dança de sempre"; el.className = ""; return; }
+  const a = dados.anims[String(f.emote)];
+  if (a && a.anim > 0) { el.textContent = "🕺 dança pronta (animação " + a.anim + ")"; el.className = "ok"; }
+  else if (a && a.anim === 0) { el.textContent = "⚠ a dança falhou: " + (a.erro || "sem detalhe"); el.className = "erro"; }
+  else { el.textContent = "⏳ o jogo extrai a dança do emote " + f.emote + " quando a faixa tocar (Studio aberto)"; el.className = ""; }
+}
+
+function proximaFaixa(direcao) {
+  if (!dados.faixas.length) return;
+  const i = dados.faixas.findIndex((f) => f.id === dados.pista.faixa);
+  const alvo = dados.faixas[(i + direcao + dados.faixas.length) % dados.faixas.length] || dados.faixas[0];
+  mandarTocar(alvo.id, true);
+}
+
+audio.addEventListener("ended", () => {
+  const f = faixaDaPista();
+  if (f && f.loop_um) {
+    audio.currentTime = 0;
+    audio.play().catch(() => {});
+    return;
+  }
+  proximaFaixa(1);
+});
+
+$("btTocar").addEventListener("click", () => {
+  const f = faixaDaPista() || dados.faixas[0];
+  if (!f) return;
+  mandarTocar(f.id, !(dados.pista.tocando && dados.pista.faixa === f.id));
+});
+$("btProxima").addEventListener("click", () => proximaFaixa(1));
+$("btAnterior").addEventListener("click", () => proximaFaixa(-1));
+
+$("volume").addEventListener("input", () => {
+  audio.volume = Number($("volume").value) / 100;
+  $("volPct").textContent = $("volume").value + "%";
+});
+$("barra").addEventListener("input", () => {
+  if (audio.duration) audio.currentTime = (Number($("barra").value) / 1000) * audio.duration;
+});
+const fmt = (s) => {
+  if (!Number.isFinite(s)) return "0:00";
+  const m = Math.floor(s / 60);
+  return m + ":" + String(Math.floor(s % 60)).padStart(2, "0");
+};
+setInterval(() => {
+  $("tDecorrido").textContent = fmt(audio.currentTime);
+  $("tTotal").textContent = fmt(audio.duration);
+  if (audio.duration && !audio.paused) $("barra").value = String((audio.currentTime / audio.duration) * 1000);
+}, 500);
+
+/* ───────────────────────── a playlist ─────────────────────────
+   Havia aqui um `extrairEmote`, que tirava o id de um link do catálogo colado
+   à mão. Saiu junto com o campo de ID: a dança agora se escolhe numa lista
+   com foto e nome. Quem ainda quiser colar um link tem a busca do catálogo,
+   e lá quem lê o link é o relay (`emoteDoLink`), que é onde essa regra tem
+   teste. */
+
+/* ─────────── as danças compradas (o Pix de R$ 9,90 pela LivePix) ───────────
+ *
+ * `vendeDancas` false = kit avulso, ou launcher sem conta. Nesse caso NÃO se
+ * desenha cadeado nenhum: trancar numa cópia que não sabe vender é trancar
+ * sem oferecer saída.
+ *
+ * Isto aqui é DESENHO. Quem recusa de verdade é o relay, que não entrega a
+ * animação de um emote fora da lista (ver `dancaLiberada` no
+ * nucleo-avatares.js) — o cadeado da tela some com dois cliques no inspetor.
+ */
+let vendeDancas = false;
+let dancasLiberadas = [];
+let dancasDeFabrica = [];
+let dancasDeFabricaNomes = [];
+let precoDaDanca = 990;
+/* O PACOTE: comprou uma vez, o catálogo inteiro abre — inclusive as danças
+   que o Roblox publicar depois. Por isso é um sim/não, e não uma lista: uma
+   lista congelaria o catálogo no dia da compra. */
+let temPacote = false;
+let vendePacote = false;
+let precoDoPacote = 5990;
+
+function dancaLiberada(emote) {
+  const id = String(emote || "");
+  if (!id || id === "0") return true;
+  if (dancasDeFabrica.includes(id)) return true;
+  if (!vendeDancas) return true;
+  if (temPacote) return true;
+  return dancasLiberadas.includes(id);
+}
+
+async function lerDancas() {
+  try {
+    const d = await (await fetch("/dancas")).json();
+    vendeDancas = !!d.vende;
+    temPacote = d.pacote === true;
+    vendePacote = d.vendePacote === true;
+    dancasLiberadas = (d.liberadas || []).map(String);
+    dancasDeFabrica = (d.fabrica || []).map(String);
+    dancasDeFabricaNomes = d.fabricaNomes || [];
+    if (d.precoCents) precoDaDanca = d.precoCents;
+    if (d.precoPacoteCents) precoDoPacote = d.precoPacoteCents;
+  } catch { /* sem a rota (relay antigo): segue sem cadeado */ }
+}
+
+function precoEmReais(centavos) {
+  return "R$ " + ((Number(centavos) || 990) / 100).toFixed(2).replace(".", ",");
+}
+
+function seloDoEmote(f) {
+  if (!f.emote) return ["sem dança", ""];
+  /* O CADEADO vem antes de tudo: uma faixa com dança não comprada não troca
+     a dança no jogo, e dizer "dança pronta" ali seria mentir pro streamer. */
+  if (!dancaLiberada(f.emote)) {
+    return ["🔒 #" + f.emote + " · não comprada", "erro", "Desbloqueie no catálogo, lá em cima"];
+  }
+  const a = dados.anims[String(f.emote)];
+  if (a && a.anim > 0) return ["#" + f.emote + " · dança pronta", "ok"];
+  if (a && a.anim === 0) return ["#" + f.emote + " · falhou", "erro", a.erro];
+  return ["#" + f.emote + " · extrai ao tocar", ""];
+}
+
+let arrastando = null;
+function desenharLista() {
+  const lista = $("lista");
+  lista.textContent = "";
+  $("listaVazia").style.display = dados.faixas.length ? "none" : "";
+  dados.faixas.forEach((f, i) => {
+    const linha = document.createElement("div");
+    linha.className = "faixa" + (dados.pista.faixa === f.id ? " tocandoAgora" : "");
+    linha.draggable = true;
+    linha.dataset.id = f.id;
+
+    const arrasta = document.createElement("div");
+    arrasta.className = "arrasta";
+    arrasta.textContent = "⠿";
+    const num = document.createElement("div");
+    num.className = "num";
+    num.textContent = String(i + 1).padStart(2, "0");
+
+    // título: clique toca; lápis edita
+    const tit = document.createElement("div");
+    tit.className = "titulo";
+    if (editandoTitulo === f.id) {
+      const campo = document.createElement("input");
+      campo.type = "text";
+      campo.value = f.titulo;
+      campo.addEventListener("keydown", (ev) => { if (ev.key === "Enter") campo.blur(); });
+      campo.addEventListener("blur", () => {
+        f.titulo = campo.value.trim() || f.titulo;
+        editandoTitulo = null;
+        salvar();
+        desenharLista();
+      });
+      tit.appendChild(campo);
+      setTimeout(() => campo.focus(), 0);
+    } else {
+      const nome = document.createElement("span");
+      nome.className = "nome";
+      nome.textContent = f.titulo;
+      nome.title = "clicar toca esta faixa";
+      nome.addEventListener("click", () => mandarTocar(f.id, true));
+      const lapis = document.createElement("button");
+      lapis.className = "mini";
+      lapis.textContent = "✏";
+      lapis.title = "renomear";
+      lapis.addEventListener("click", () => { editandoTitulo = f.id; desenharLista(); });
+      tit.append(nome, lapis);
+    }
+
+    /* A DANÇA DA FAIXA: um botão que abre a lista, e não um campo de ID.
+     *
+     * Aqui era um <input> onde se colava o link do catálogo ou o número do
+     * emote. Funcionava e era errado: o número não diz que dança é, não
+     * mostra se ela está liberada, e obrigava a pessoa a ir ao site do Roblox
+     * copiar link para escolher algo que ela JÁ TEM. Agora abre a lista do
+     * que ela pode usar — com foto e nome. */
+    const emote = document.createElement("div");
+    emote.className = "emote";
+    const botaoDanca = document.createElement("button");
+    botaoDanca.className = "escolherDanca";
+    botaoDanca.type = "button";
+    const mini = document.createElement("img");
+    const thumbDela = thumbDoEmote(f.emote);
+    if (thumbDela) mini.src = thumbDela;
+    const nomeDanca = document.createElement("span");
+    nomeDanca.className = "nomeD" + (f.emote ? "" : " vazio2");
+    nomeDanca.textContent = f.emote ? nomeDoEmote(f.emote) : "— escolher dança —";
+    const setaD = document.createElement("span");
+    setaD.className = "seta";
+    setaD.textContent = "▾";
+    botaoDanca.append(mini, nomeDanca, setaD);
+    botaoDanca.addEventListener("click", () => {
+      faixaSelecionada = f.id;
+      abrirEscolherDanca(f);
+    });
+
+    const [seloTxt, seloCls, seloTitulo] = seloDoEmote(f);
+    const selo = document.createElement("span");
+    selo.className = "selo " + (seloCls || "");
+    selo.textContent = seloTxt;
+    if (seloTitulo) selo.title = seloTitulo;
+    emote.append(botaoDanca, selo);
+
+    // loop one + remover
+    const botoes = document.createElement("div");
+    botoes.className = "botoes";
+    const loop = document.createElement("button");
+    loop.className = "mini" + (f.loop_um ? " ligado" : "");
+    loop.textContent = "Loop One";
+    loop.addEventListener("click", () => { f.loop_um = !f.loop_um; salvar(); desenharLista(); });
+    const remover = document.createElement("button");
+    remover.className = "perigo";
+    remover.textContent = "Remove";
+    remover.addEventListener("click", () => {
+      dados.faixas = dados.faixas.filter((x) => x.id !== f.id);
+      dados.slots.forEach((s) => { if (s.faixa === f.id) { s.faixa = ""; s.presente = s.presente; } });
+      salvar();
+      desenharLista();
+      desenharSlots();
+    });
+    botoes.append(loop, remover);
+
+    linha.append(arrasta, num, tit, emote, botoes);
+
+    // arrastar pra reordenar
+    linha.addEventListener("dragstart", () => { arrastando = f.id; });
+    linha.addEventListener("dragover", (ev) => {
+      ev.preventDefault();
+      if (!arrastando || arrastando === f.id) return;
+      const de = dados.faixas.findIndex((x) => x.id === arrastando);
+      const para = dados.faixas.findIndex((x) => x.id === f.id);
+      if (de < 0 || para < 0) return;
+      const [movida] = dados.faixas.splice(de, 1);
+      dados.faixas.splice(para, 0, movida);
+      desenharLista();
+    });
+    linha.addEventListener("dragend", () => { arrastando = null; salvar(); });
+
+    lista.appendChild(linha);
+  });
+}
+
+/* ───────────────────────── baixar do YouTube ───────────────────────── */
+async function baixar(url, tituloSugerido) {
+  estado("baixando… (pode levar um minuto)", "");
+  try {
+    const r = await fetch("/musicas/baixar", {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-token": TOKEN_ESCRITA },
+      body: JSON.stringify({ url }),
+    });
+    const resp = await r.json();
+    if (!r.ok) throw new Error(resp.erro || r.status);
+    dados.faixas.push({
+      id: Math.random().toString(36).slice(2, 10),
+      titulo: tituloSugerido || resp.titulo || "Sem título",
+      arquivo: resp.arquivo,
+      emote: 0,
+      loop_um: false,
+    });
+    salvar();
+    desenharLista();
+    desenharSlots();
+    estado("música baixada e na playlist ✓", "ok");
+  } catch (e) {
+    estado("download falhou: " + e.message, "erro");
+  }
+}
+
+$("btBaixar").addEventListener("click", () => {
+  const url = $("linkYt").value.trim();
+  if (!/^https?:\/\//i.test(url)) { estado("cole um link do YouTube", "erro"); return; }
+  $("linkYt").value = "";
+  baixar(url, "");
+});
+
+/* ───────────────────────── as buscas ───────────────────────── */
+function fecharResultados() {
+  $("resYt").style.display = "none";
+  $("resEmote").style.display = "none";
+}
+document.addEventListener("click", (ev) => {
+  if (!ev.target.closest(".caixaBusca")) fecharResultados();
+});
+
+$("formYt").addEventListener("submit", async (ev) => {
+  ev.preventDefault();
+  const q = $("qYt").value.trim();
+  if (!q) return;
+  const caixa = $("resYt");
+  caixa.style.display = "block";
+  caixa.innerHTML = '<div class="aviso">buscando no YouTube…</div>';
+  try {
+    const r = await fetch("/musicas/buscar?q=" + encodeURIComponent(q), { headers: { "x-token": TOKEN_ESCRITA } });
+    const resp = await r.json();
+    if (!r.ok) throw new Error(resp.erro || r.status);
+    caixa.textContent = "";
+    if (!resp.resultados.length) caixa.innerHTML = '<div class="aviso">nada encontrado</div>';
+    for (const v of resp.resultados) {
+      const item = document.createElement("div");
+      item.className = "item";
+      const info = document.createElement("div");
+      const nome = document.createElement("div");
+      nome.className = "nome";
+      nome.textContent = v.titulo;
+      const extra = document.createElement("div");
+      extra.className = "extra";
+      extra.textContent = (v.canal || "") + (v.duracao_s ? " · " + fmt(v.duracao_s) : "");
+      info.append(nome, extra);
+      const baixarEl = document.createElement("div");
+      baixarEl.className = "direita";
+      baixarEl.textContent = "⤓ baixar";
+      item.append(info, baixarEl);
+      item.addEventListener("click", () => {
+        fecharResultados();
+        baixar(v.url, v.titulo);
+      });
+      caixa.appendChild(item);
+    }
+  } catch (e) {
+    caixa.innerHTML = '<div class="aviso">a busca falhou: ' + e.message + "</div>";
+  }
+});
+
+/* ═══════════════ O CATÁLOGO DE DANÇAS, EM GRADE ═══════════════
+ *
+ * Cada resultado é um cartão com foto, nome, autor e PREÇO. As quatro que já
+ * vêm no jogo aparecem como livres; o resto custa R$ 9,90, uma vez só.
+ *
+ * SOBRE A PRÉVIA ANIMADA: o Roblox não entrega imagem animada do emote. A
+ * thumbnail é parada (o WebP deles não tem os blocos de animação — conferido
+ * na API) e o endpoint 3D responde 403. Quem anima no site é o renderizador
+ * de avatar deles, que não dá pra embutir aqui, ainda mais offline.
+ *
+ * Então a prévia é NO PRÓPRIO JOGO: o botão faz os bonecos dançarem no Studio
+ * por alguns segundos, e a formação volta sozinha. É a única prévia honesta —
+ * e mostra exatamente o que a pessoa está comprando, no corpo em que vai usar.
+ */
+let emotesNaTela = [];
+let emoteSelecionado = "";
+
+/* A LISTA COMPACTA -- o que a busca mostra por padrão.
+   Seis linhas num menu flutuante, do jeito que já era: a playlist continua
+   visível embaixo, e quem quiser o catálogo inteiro clica em "ver todas". */
+const NA_LISTA = 6;
+
+/**
+ * AS QUATRO DO JOGO VÊM PRIMEIRO, e de graça.
+ *
+ * Elas já são da pessoa: mandá-la buscar no catálogo (e arriscar achar uma
+ * cópia paga com o mesmo nome — "Jamal" tem meia dúzia) seria vender o que
+ * ela tem. Por isso aparecem ANTES de qualquer busca, e no topo dos
+ * resultados quando o nome casa.
+ */
+function fabricaComoEmotes(termo = "") {
+  const t = termo.trim().toLowerCase();
+  const daCasa = dancasDeFabricaNomes
+    .filter((d) => !t || d.nome.toLowerCase().includes(t))
+    .map((d) => ({
+      id: d.id,
+      nome: d.nome,
+      criador: "já vem no jogo",
+      preco: 0,
+      thumb: `/emotes/thumb?id=${d.id}`,
+    }));
+
+  /* AS COMPRADAS entram junto, e antes do catálogo: são as que a pessoa já
+     pode usar agora. O nome vem do que ela viu ao comprar (guardado no
+     navegador) -- sem isso a lista mostraria "dança #123456", que não diz
+     nada para quem comprou três semanas atrás. */
+  const minhas = dancasLiberadas
+    .filter((id) => !dancasDeFabrica.includes(id))
+    .map((id) => ({
+      id,
+      nome: nomesConhecidos[id] || "dança #" + id,
+      criador: "sua",
+      preco: 0,
+      thumb: `/emotes/thumb?id=${id}`,
+    }))
+    .filter((e) => !t || e.nome.toLowerCase().includes(t));
+
+  return [...daCasa, ...minhas];
+}
+
+/**
+ * O nome de cada dança que já passou pela tela, guardado no navegador.
+ *
+ * O catálogo do Roblox só devolve nome quando a pessoa BUSCA; a lista de
+ * compradas que vem do servidor é só de ids. Sem esta memória, uma dança
+ * comprada semana passada apareceria como "dança #104142334418357".
+ */
+const nomesConhecidos = (() => {
+  try {
+    return JSON.parse(localStorage.getItem("ratgames:nomesDeDanca") || "{}");
+  } catch {
+    return {};
+  }
+})();
+
+function lembrarNomes(lista) {
+  let mudou = false;
+  for (const e of lista || []) {
+    if (e?.id && e?.nome && nomesConhecidos[String(e.id)] !== e.nome) {
+      nomesConhecidos[String(e.id)] = e.nome;
+      mudou = true;
+    }
+  }
+  if (mudou) {
+    try {
+      localStorage.setItem("ratgames:nomesDeDanca", JSON.stringify(nomesConhecidos));
+    } catch { /* modo privado: fica só na memória desta sessão */ }
+  }
+}
+
+/** O nome de uma dança pelo id — de fábrica, ou o que já passou pela tela. */
+function nomeDoEmote(id) {
+  const s = String(id || "");
+  if (!s) return "";
+  const daCasa = (dancasDeFabricaNomes || []).find((d) => String(d.id) === s);
+  return daCasa ? daCasa.nome : (nomesConhecidos[s] || "dança #" + s);
+}
+
+/** A miniatura, servida pelo relay (que também guarda o cache). */
+function thumbDoEmote(id) {
+  return id ? `/emotes/thumb?id=${id}` : "";
+}
+
+/* ─────────── O ESCOLHEDOR DE DANÇA DA FAIXA ───────────
+ *
+ * Ocupa o lugar do campo onde se colava o link do catálogo. A lista é o que
+ * a pessoa PODE USAR: as quatro do jogo, as compradas, e — com o pacote — as
+ * que ela já viu no catálogo. Quem quer uma que não está aqui vai ao
+ * catálogo pelo rodapé, que é onde se compra.
+ */
+function abrirEscolherDanca(faixa) {
+  escolhendoDancaDe = faixa;
+  $("dancaBusca").value = "";
+  desenharListaDancas();
+  $("caixaDanca").classList.add("aberta");
+  $("dancaBusca").focus();
+}
+
+function fecharEscolherDanca() {
+  escolhendoDancaDe = null;
+  $("caixaDanca").classList.remove("aberta");
+}
+
+function desenharListaDancas() {
+  const lista = $("listaDancas");
+  const termo = $("dancaBusca").value.trim().toLowerCase();
+  const atual = escolhendoDancaDe ? String(escolhendoDancaDe.emote || "") : "";
+  lista.textContent = "";
+
+  /* Com o PACOTE, entram também as que ela já viu no catálogo: o direito é
+     sobre o catálogo inteiro, e ele não cabe numa lista. */
+  const ids = new Set([
+    ...dancasDeFabricaNomes.map((d) => String(d.id)),
+    ...dancasLiberadas,
+    ...(temPacote ? Object.keys(nomesConhecidos) : []),
+  ]);
+  if (atual) ids.add(atual); // a que já está na faixa nunca some da lista
+
+  const itens = [...ids]
+    .map((id) => ({ id, nome: nomeDoEmote(id), fabrica: dancasDeFabrica.includes(id) }))
+    .filter((e) => !termo || e.nome.toLowerCase().includes(termo))
+    .sort((a, b) => (b.fabrica ? 1 : 0) - (a.fabrica ? 1 : 0));
+
+  /* "Sem dança" é uma escolha de verdade: a faixa toca e a formação segue no
+     passo em que estava. Sem esta linha, tirar a dança de uma faixa exigiria
+     apagar a faixa inteira. */
+  const nenhuma = document.createElement("div");
+  nenhuma.className = "item" + (atual ? "" : " atual");
+  const semFoto = document.createElement("span");
+  semFoto.className = "semFoto";
+  semFoto.textContent = "🚫";
+  const semNome = document.createElement("span");
+  semNome.className = "rot";
+  semNome.textContent = "Sem dança (só a música)";
+  nenhuma.append(semFoto, semNome);
+  nenhuma.addEventListener("click", () => escolherDanca(0));
+  lista.appendChild(nenhuma);
+
+  for (const e of itens) {
+    const item = document.createElement("div");
+    item.className = "item" + (e.id === atual ? " atual" : "");
+    const img = document.createElement("img");
+    img.src = thumbDoEmote(e.id);
+    img.loading = "lazy";
+    img.alt = "";
+    const rot = document.createElement("span");
+    rot.className = "rot";
+    rot.textContent = e.nome;
+    const de = document.createElement("span");
+    de.className = "moedas";
+    de.textContent = e.fabrica ? "já vem" : "sua";
+    item.append(img, rot, de);
+    item.addEventListener("click", () => escolherDanca(e.id));
+    lista.appendChild(item);
+  }
+
+  if (!itens.length && termo) {
+    const aviso = document.createElement("div");
+    aviso.className = "aviso";
+    aviso.textContent = "nenhuma dança sua com “" + termo + "” — o catálogo tem mais";
+    lista.appendChild(aviso);
+  }
+}
+
+function escolherDanca(id) {
+  if (escolhendoDancaDe) {
+    escolhendoDancaDe.emote = id ? Number(id) : 0;
+    salvar();
+    desenharLista();
+    desenharSlots(); // o slot mostra a dança da faixa dele
+  }
+  fecharEscolherDanca();
+}
+
+$("dancaBusca").addEventListener("input", desenharListaDancas);
+$("dancaFechar").addEventListener("click", fecharEscolherDanca);
+$("caixaDanca").addEventListener("click", (e) => {
+  if (e.target === $("caixaDanca")) fecharEscolherDanca();
+});
+$("dancaCatalogo").addEventListener("click", () => {
+  fecharEscolherDanca();
+  abrirCatalogoPopular();
+});
+
+function desenharListaEmotes() {
+  const caixa = $("resEmote");
+  caixa.style.display = "block";
+  caixa.textContent = "";
+  if (!emotesNaTela.length) {
+    caixa.innerHTML = '<div class="aviso">nada encontrado — dá pra colar o link da loja direto no campo da faixa</div>';
+    return;
+  }
+  for (const e of emotesNaTela.slice(0, NA_LISTA)) {
+    const id = String(e.id);
+    const livre = dancaLiberada(id);
+    const item = document.createElement("div");
+    item.className = "item";
+    const img = document.createElement("img");
+    img.loading = "lazy";
+    img.src = e.thumb;
+    const info = document.createElement("div");
+    const nome = document.createElement("div");
+    nome.className = "nome";
+    nome.textContent = e.nome;
+    const extra = document.createElement("div");
+    extra.className = "extra";
+    extra.textContent = e.criador || "";
+    info.append(nome, extra);
+    const dir = document.createElement("div");
+    dir.className = "direita";
+    dir.textContent = livre ? "livre" : precoEmReais(precoDaDanca);
+    if (livre) dir.style.color = "var(--ok)";
+    item.append(img, info, dir);
+    item.addEventListener("click", () => {
+      if (livre) vincular(e);
+      else comprar(e);
+      caixa.style.display = "none";
+    });
+    caixa.appendChild(item);
+  }
+  /* O RODAPÉ SEMPRE EXISTE, mesmo com quatro itens na lista.
+     Antes ele só aparecia com mais de seis resultados -- então, ao clicar no
+     campo (que mostra só as suas), não havia caminho nenhum para o catálogo:
+     a pessoa tinha que adivinhar que precisava digitar. */
+  const rodape = document.createElement("div");
+  rodape.className = "verTodas";
+  rodape.textContent = emotesNaTela.length > NA_LISTA
+    ? `ver todas as ${emotesNaTela.length} ↓`
+    : "🔎 ver mais animações do catálogo ↓";
+  /* `mousedown` e não `click`: o clique fora fecha a lista (o ouvinte do
+     documento), e em alguns casos ela sumia ANTES do click chegar aqui --
+     o botão parecia morto. O mousedown acontece antes desse fechamento. */
+  rodape.addEventListener("mousedown", (ev) => {
+    ev.preventDefault();
+    ev.stopPropagation();
+    /* Sempre ABRE o catálogo. Quando ainda não se buscou nada, ele carrega os
+       emotes mais populares -- antes este rodapé só devolvia o foco pro campo
+       e parecia um botão morto. */
+    if (emotesNaTela.length > NA_LISTA) abrirGrade();
+    else abrirCatalogoPopular();
+  });
+  caixa.appendChild(rodape);
+}
+
+/** O catálogo sem busca: os mais populares do Roblox. */
+async function abrirCatalogoPopular() {
+  $("resEmote").style.display = "none";
+  $("caixaGrade").hidden = false;
+  $("gradeTitulo").textContent = "Catálogo — carregando…";
+  $("gradeEmotes").textContent = "";
+  try {
+    const resp = await (await fetch("/emotes")).json();
+    lembrarNomes(resp.emotes);
+    const daCasa = fabricaComoEmotes();
+    const jaTenho = new Set(daCasa.map((e) => String(e.id)));
+    emotesNaTela = [...daCasa, ...(resp.emotes || []).filter((e) => !jaTenho.has(String(e.id)))];
+    $("gradeTitulo").textContent = `Catálogo — ${emotesNaTela.length} danças (as mais populares)`;
+    desenharGrade();
+    $("caixaGrade").scrollIntoView({ behavior: "smooth", block: "start" });
+  } catch (e) {
+    $("gradeTitulo").textContent = "não consegui abrir o catálogo: " + e.message;
+  }
+}
+
+function abrirGrade() {
+  $("resEmote").style.display = "none";
+  $("caixaGrade").hidden = false;
+  $("gradeTitulo").textContent = `Catálogo — ${emotesNaTela.length} danças`;
+  desenharGrade();
+  $("caixaGrade").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+/* ─────────────── A OFERTA DO PACOTE ───────────────
+ *
+ * Aparece só onde faz sentido: dentro do catálogo, que é onde a pessoa está
+ * olhando cadeado atrás de cadeado. Some assim que ela compra — continuar
+ * oferecendo o que já foi comprado é o jeito mais rápido de parecer golpe.
+ */
+function desenharFaixaDoPacote() {
+  const faixa = $("faixaPacote");
+  faixa.textContent = "";
+  if (!vendeDancas || !vendePacote || temPacote) {
+    faixa.hidden = true;
+    return;
+  }
+  faixa.hidden = false;
+
+  const texto = document.createElement("div");
+  const t1 = document.createElement("b");
+  t1.textContent = "Destravar TODAS as danças — " + precoEmReais(precoDoPacote);
+  const t2 = document.createElement("div");
+  t2.className = "sub2";
+  /* A frase diz o que o pacote faz de diferente: ele vale pro catálogo
+     inteiro, inclusive pro que ainda não existe. É a razão de ele custar mais
+     que seis avulsas, e esconder isso faria a conta parecer ruim. */
+  t2.textContent = "Uma vez só. Vale pro catálogo inteiro, inclusive as danças que o Roblox publicar depois.";
+  texto.append(t1, t2);
+
+  const botao = document.createElement("button");
+  botao.className = "mini";
+  botao.style.cssText = "background:var(--acento);color:#04131f;border:0;font-weight:700;padding:8px 14px";
+  botao.textContent = "Quero todas";
+  botao.addEventListener("click", () => comprar(null));
+
+  faixa.append(texto, botao);
+}
+
+function desenharGrade() {
+  desenharFaixaDoPacote();
+  const grade = $("gradeEmotes");
+  grade.textContent = "";
+
+  for (const e of emotesNaTela) {
+    const id = String(e.id);
+    const deFabrica = dancasDeFabrica.includes(id);
+    const comprada = dancasLiberadas.includes(id) || temPacote;
+    const livre = deFabrica || comprada || !vendeDancas;
+
+    const card = document.createElement("div");
+    card.className = "emoteCard" + (emoteSelecionado === id ? " selecionado" : "");
+
+    const foto = document.createElement("div");
+    foto.className = "foto";
+    const img = document.createElement("img");
+    img.loading = "lazy";
+    img.src = e.thumb;
+    img.alt = e.nome;
+    foto.appendChild(img);
+    const selo = document.createElement("span");
+    if (deFabrica) { selo.className = "jaTem"; selo.textContent = "JÁ VEM"; foto.appendChild(selo); }
+    else if (comprada) { selo.className = "jaTem"; selo.textContent = "✓ SUA"; foto.appendChild(selo); }
+    else if (vendeDancas) { selo.className = "cadeado"; selo.textContent = "🔒"; foto.appendChild(selo); }
+
+    const corpo = document.createElement("div");
+    corpo.className = "corpo";
+    const nome = document.createElement("div");
+    nome.className = "nome";
+    nome.textContent = e.nome;
+    const autor = document.createElement("div");
+    autor.className = "autor";
+    autor.textContent = e.criador || "";
+    const preco = document.createElement("div");
+    preco.className = "preco" + (livre ? " livre" : "");
+    preco.textContent = deFabrica ? "já vem no jogo"
+      : comprada ? "✓ desbloqueada"
+      : !vendeDancas ? "" : precoEmReais(precoDaDanca);
+
+    const acoes = document.createElement("div");
+    acoes.className = "acoes";
+    const bPrever = document.createElement("button");
+    bPrever.className = "mini";
+    bPrever.textContent = "▶ Ver mexendo";
+    bPrever.title = "abre um estúdio branco no Studio, com um boneco dançando — arraste o mouse pra girar";
+    bPrever.addEventListener("click", () => prever(id, e.nome));
+
+    const bPrincipal = document.createElement("button");
+    if (livre) {
+      bPrincipal.className = "mini ligado";
+      bPrincipal.textContent = "Usar";
+      bPrincipal.addEventListener("click", () => vincular(e));
+    } else {
+      bPrincipal.className = "mini";
+      bPrincipal.style.cssText = "background:var(--acento);color:#04131f;border:0;font-weight:700";
+      bPrincipal.textContent = "Desbloquear";
+      bPrincipal.addEventListener("click", () => comprar(e));
+    }
+    acoes.append(bPrever, bPrincipal);
+
+    corpo.append(nome, autor, preco, acoes);
+    card.append(foto, corpo);
+    grade.appendChild(card);
+  }
+}
+
+/** Vincula a dança à faixa escolhida da playlist. */
+function vincular(e) {
+  const alvo = dados.faixas.find((f) => f.id === faixaSelecionada) ||
+    faixaDaPista() || dados.faixas[dados.faixas.length - 1];
+  if (!alvo) { estado("baixe uma música primeiro, aí eu vinculo a dança nela", "erro"); return; }
+  alvo.emote = e.id;
+  emoteSelecionado = String(e.id);
+  salvar();
+  desenharLista();
+  desenharGrade();
+  estado(`"${e.nome}" vinculada a "${alvo.titulo}" ✓`, "ok");
+}
+
+/**
+ * VER MEXENDO — a prévia acontece NO JOGO, e só nele.
+ *
+ * Duas tentativas anteriores morreram, e vale registrar por quê:
+ *
+ *   1. imagem animada do emote NÃO EXISTE. Medido na API do Roblox: a
+ *      miniatura é parada (o WebP não tem blocos de animação) e o endpoint
+ *      3D responde 403. Quem anima no site deles é um player WebGL;
+ *   2. abrir a página deles numa janelinha e ESCONDER a loja por CSS
+ *      funcionou mal: o HTML muda, e deslogado nem renderiza o mesmo —
+ *      deu tela preta. Fora que a página traz o botão de comprar o emote,
+ *      que é justamente o que não pode aparecer.
+ *
+ * Sobrou o que sempre foi o melhor: tocar nos BONECOS DO STUDIO por alguns
+ * segundos. É a prévia de verdade — o corpo, a escala e a velocidade em que
+ * a dança vai ser usada —, não depende de página de terceiro, e não leva
+ * ninguém para a loja do Roblox.
+ */
+async function prever(emote, nome) {
+  try {
+    const r = await fetch("/dancas/prever", {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-token": TOKEN_ESCRITA },
+      body: JSON.stringify({ emote }),
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.erro || r.status);
+    estado(
+      d.noJogo
+        ? `▶ "${nome}" no estúdio por ${d.segundos}s — olhe o Studio e ARRASTE o mouse pra girar em volta`
+        : `⚠ o jogo não está em Play. Aperte ▶ Play no Roblox Studio e clique de novo.`,
+      d.noJogo ? "ok" : "erro",
+    );
+  } catch (err) {
+    estado("não consegui prever: " + err.message, "erro");
+  }
+}
+
+/* ─────────────── A COMPRA: o QR aparece aqui mesmo ─────────────── */
+let compraAberta = null;
+
+/* `e` = a dança avulsa; `null` = o PACOTE com todas. A mesma caixa e o mesmo
+   laço de conferência servem aos dois — o que muda é o corpo do pedido e o
+   preço na barra de cima. */
+async function comprar(e) {
+  const pacote = !e;
+  $("compraNome").textContent = pacote
+    ? `Todas as danças do catálogo — ${precoEmReais(precoDoPacote)}`
+    : `Desbloquear “${e.nome}” — ${precoEmReais(precoDaDanca)}`;
+  $("compraFrame").removeAttribute("src");
+  $("compraEstado").textContent = "abrindo o pagamento…";
+  $("compraEstado").className = "estado";
+  $("caixaCompra").classList.add("aberta");
+
+  try {
+    const r = await fetch("/dancas/comprar", {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-token": TOKEN_ESCRITA },
+      body: JSON.stringify(pacote ? { pacote: true } : { emote: String(e.id) }),
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.erro || d.detalhe || r.status);
+    /* SEM LINK NÃO SE ABRE NADA.
+       Isto já apareceu na tela como `{"erro":"rota desconhecida"}` dentro da
+       caixa de pagamento: o servidor recusou (a rota do pacote ainda não
+       estava publicada lá), a resposta veio sem `url`, e o iframe carregou
+       a palavra "undefined" como se fosse endereço -- o relay respondeu 404 e
+       o 404 dele é que apareceu, parecendo defeito do pagamento.
+
+       O motivo REAL vem no `detalhe` do servidor. Mostrar ele é a diferença
+       entre "o servidor ainda não vende o pacote" e uma tela sem sentido. */
+    if (!d.url) {
+      throw new Error(d.detalhe || d.erro || "o servidor não devolveu o link do pagamento");
+    }
+
+    /* A TELA DA LIVEPIX, aqui dentro. O Pix de verdade (aquele
+       `00020101...` que o banco lê) nasce lá, depois de escolher a forma de
+       pagamento -- por isso não dá para desenhar um QR nosso. */
+    $("compraFrame").src = d.url;
+    $("compraEstado").textContent = "escolha Pix na tela acima e pague — eu aviso aqui quando cair";
+    /* Fica perguntando ao servidor, que confere na LivePix se o aviso dela
+       ainda não chegou — quem acabou de pagar está olhando a tela AGORA. */
+    compraAberta = { reference: d.reference, url: d.url, timer: setInterval(conferirCompra, 3000) };
+  } catch (err) {
+    $("compraEstado").textContent = "❌ " + err.message;
+  }
+}
+
+async function conferirCompra() {
+  if (!compraAberta) return;
+  try {
+    const r = await fetch("/dancas/estado?ref=" + encodeURIComponent(compraAberta.reference));
+    const d = await r.json();
+    if (!r.ok || !d.liberada) return;
+    clearInterval(compraAberta.timer);
+    dancasLiberadas = (d.dancas || []).map(String);
+    if (d.pacoteDancas === true) temPacote = true;
+    $("compraEstado").textContent = temPacote && d.pacote
+      ? "✅ pago! o catálogo inteiro é seu."
+      : "✅ pago! a dança é sua.";
+    $("compraEstado").className = "estado ok";
+    desenharGrade();
+    desenharLista();
+    desenharFaixaDoPacote();
+    setTimeout(fecharCompra, 2200);
+  } catch { /* o próximo giro tenta de novo */ }
+}
+
+function fecharCompra() {
+  if (compraAberta?.timer) clearInterval(compraAberta.timer);
+  compraAberta = null;
+  /* Descarrega a tela deles ao fechar: um checkout vivo em segundo plano
+     continua com temporizador rodando e som/rede acesos por trás do painel. */
+  $("compraFrame").removeAttribute("src");
+  $("caixaCompra").classList.remove("aberta");
+}
+
+$("compraFechar").addEventListener("click", fecharCompra);
+$("compraAbrir").addEventListener("click", () => {
+  if (compraAberta?.url) window.open(compraAberta.url, "_blank");
+});
+
+$("fecharGrade").addEventListener("click", () => { $("caixaGrade").hidden = true; });
+
+/* Clicar no campo já mostra as quatro do jogo, sem digitar nada: é o que a
+   pessoa vai querer na maioria das vezes, e evita que ela vá caçar no
+   catálogo uma dança que já tem. */
+$("qEmote").addEventListener("focus", () => {
+  if ($("qEmote").value.trim()) return; // já buscou algo: não atropela
+  emotesNaTela = fabricaComoEmotes();
+  desenharListaEmotes();
+});
+
+$("formEmote").addEventListener("submit", async (ev) => {
+  ev.preventDefault();
+  const q = $("qEmote").value.trim();
+  if (!q) return;
+  const caixa = $("resEmote");
+  caixa.style.display = "block";
+  caixa.innerHTML = '<div class="aviso">buscando no catálogo do Roblox…</div>';
+  try {
+    const resp = await (await fetch("/emotes?q=" + encodeURIComponent(q))).json();
+    /* As do jogo ENTRAM NA FRENTE, e as cópias pagas de mesmo nome que o
+       catálogo devolve são removidas -- senão a pessoa paga por uma
+       "Jamal Brazil Groove" que já é dela. */
+    lembrarNomes(resp.emotes);
+    const daCasa = fabricaComoEmotes(q);
+    const jaTenho = new Set(daCasa.map((e) => String(e.id)));
+    const doCatalogo = (resp.emotes || []).filter((e) => !jaTenho.has(String(e.id)));
+    emotesNaTela = [...daCasa, ...doCatalogo];
+    if (resp.erro && !doCatalogo.length) {
+      caixa.innerHTML = '<div class="aviso">a busca falhou: ' + resp.erro + "</div>";
+      return;
+    }
+    desenharListaEmotes();
+    /* Se o catálogo já estava aberto, ele acompanha a busca nova em vez de
+       ficar mostrando o resultado anterior. */
+    if (!$("caixaGrade").hidden) abrirGrade();
+  } catch (e) {
+    caixa.innerHTML = '<div class="aviso">a busca falhou: ' + e.message + "</div>";
+  }
+});
+
+/* ─────────────── O ESCOLHEDOR DE PRESENTE (foto + busca) ───────────────
+ *
+ * Aqui era um <select>, e não servia por dois motivos: não cabe imagem, e a
+ * lista de presentes do TikTok passa de duzentos itens em ordem nenhuma. A
+ * pessoa vê o presente PELO DESENHO na tela da live — sem foto e sem busca,
+ * achar o nome certo virava sorte.
+ */
+function abrirEscolherPresente(slot) {
+  escolhendoPara = slot;
+  $("presenteBusca").value = "";
+  desenharListaPresentes();
+  $("caixaPresente").classList.add("aberta");
+  $("presenteBusca").focus();
+}
+
+function fecharEscolherPresente() {
+  escolhendoPara = null;
+  $("caixaPresente").classList.remove("aberta");
+}
+
+function desenharListaPresentes() {
+  const lista = $("listaPresentes");
+  const termo = $("presenteBusca").value.trim().toLowerCase();
+  const atual = escolhendoPara ? escolhendoPara.presente : "";
+  lista.textContent = "";
+
+  if (!presentes.length) {
+    const aviso = document.createElement("div");
+    aviso.className = "aviso";
+    aviso.textContent = "o catálogo de presentes ainda não carregou — conecte a live uma vez e volte aqui";
+    lista.appendChild(aviso);
+    return;
+  }
+
+  /* Sem busca, os CAROS primeiro: são os que o streamer quer pendurar numa
+     dança. Com busca, a ordem do catálogo (que já vem por relevância). */
+  const achados = presentes
+    .filter((p) => !termo || p.nome.includes(termo) || (p.rotulo || "").toLowerCase().includes(termo))
+    .sort((a, b) => (termo ? 0 : (b.moedas ?? 0) - (a.moedas ?? 0)))
+    .slice(0, 120);
+
+  if (!achados.length) {
+    const aviso = document.createElement("div");
+    aviso.className = "aviso";
+    aviso.textContent = "nenhum presente com “" + termo + "”";
+    lista.appendChild(aviso);
+    return;
+  }
+
+  for (const p of achados) {
+    const item = document.createElement("div");
+    item.className = "item" + (p.nome === atual ? " atual" : "");
+    const img = document.createElement("img");
+    if (p.imagem) img.src = p.imagem;
+    img.loading = "lazy";
+    img.alt = "";
+    const rot = document.createElement("span");
+    rot.className = "rot";
+    rot.textContent = p.rotulo || p.nome;
+    const moedas = document.createElement("span");
+    moedas.className = "moedas";
+    moedas.textContent = p.moedas !== null && p.moedas !== undefined ? "🪙 " + p.moedas : "";
+    item.append(img, rot, moedas);
+    item.addEventListener("click", () => {
+      if (escolhendoPara) {
+        escolhendoPara.presente = p.nome;
+        salvar();
+        desenharSlots();
+      }
+      fecharEscolherPresente();
+    });
+    lista.appendChild(item);
+  }
+}
+
+$("presenteBusca").addEventListener("input", desenharListaPresentes);
+$("presenteFechar").addEventListener("click", fecharEscolherPresente);
+$("caixaPresente").addEventListener("click", (e) => {
+  if (e.target === $("caixaPresente")) fecharEscolherPresente();
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key !== "Escape") return;
+  if (escolhendoPara) fecharEscolherPresente();
+  if (escolhendoDancaDe) fecharEscolherDanca();
+});
+
+/* ───────────────────── os slots de gift ─────────────────────
+ * Eram quatro fixos. Agora a pessoa adiciona quantos quiser (até MAX_SLOTS):
+ * cada slot é uma dança a mais pendurada num presente, e quem compra várias
+ * no catálogo esbarrava no teto de quatro sem entender por quê.
+ *
+ * Esta lista é a DONA dos gatilhos de presente: o que entra aqui vira gatilho
+ * no avaliador e na multidão também (o relay sincroniza ao salvar).
+ */
+const MAX_SLOTS = 12;
+
+function desenharSlots() {
+  const raiz = $("slots");
+  raiz.textContent = "";
+  if (!Array.isArray(dados.slots)) dados.slots = [];
+  dados.slots.forEach((slot, i) => {
+    const caixa = document.createElement("div");
+    caixa.className = "slot";
+    const tit = document.createElement("div");
+    tit.className = "tit";
+    tit.innerHTML = "Dance/Music Gift " + (i + 1) + " <small>troca a música/dança da live</small>";
+    const tirar = document.createElement("span");
+    tirar.className = "x";
+    tirar.textContent = "✕";
+    tirar.title = "tirar este gatilho (some do avaliador e da multidão também)";
+    tirar.addEventListener("click", () => {
+      dados.slots.splice(i, 1);
+      salvar();
+      desenharSlots();
+    });
+    tit.appendChild(tirar);
+
+    const linhaPresente = document.createElement("div");
+    linhaPresente.className = "linha";
+    const foto = document.createElement("img");
+    const doCatalogo = presentes.find((p) => p.nome === slot.presente);
+    if (doCatalogo && doCatalogo.imagem) foto.src = doCatalogo.imagem;
+
+    const botao = document.createElement("button");
+    botao.className = "escolher";
+    botao.type = "button";
+    const nomeP = document.createElement("span");
+    nomeP.className = "nomeP" + (slot.presente ? "" : " vazio2");
+    /* O nome salvo continua aparecendo mesmo fora do catálogo (catálogo ainda
+       não carregado, ou um nome que a API regionaliza) — mostrar "— presente —"
+       aí faria parecer que o gatilho se perdeu. */
+    nomeP.textContent = slot.presente ? (doCatalogo ? doCatalogo.rotulo : slot.presente) : "— escolher presente —";
+    const seta = document.createElement("span");
+    seta.className = "seta";
+    seta.textContent = "▾";
+    botao.append(nomeP, seta);
+    botao.addEventListener("click", () => abrirEscolherPresente(slot));
+    linhaPresente.append(foto, botao);
+
+    const linhaFaixa = document.createElement("div");
+    linhaFaixa.className = "linha";
+    const selFaixa = document.createElement("select");
+    const vazioF = document.createElement("option");
+    vazioF.value = "";
+    vazioF.textContent = "— música da playlist —";
+    selFaixa.appendChild(vazioF);
+    for (const f of dados.faixas) {
+      const op = document.createElement("option");
+      op.value = f.id;
+      op.textContent = f.titulo;
+      if (f.id === slot.faixa) op.selected = true;
+      selFaixa.appendChild(op);
+    }
+    selFaixa.addEventListener("change", () => { slot.faixa = selFaixa.value; salvar(); desenharSlots(); });
+    linhaFaixa.append(selFaixa);
+
+    /* ─────────────── A DANÇA, no mesmo lugar ───────────────
+     *
+     * Esta aba passou a ser o lugar ÚNICO de configurar presente + música +
+     * dança. Antes a dança só se escolhia editando a faixa lá embaixo, e o
+     * streamer tinha que montar o conjunto em dois lugares diferentes.
+     *
+     * A dança continua sendo DA FAIXA -- uma fonte de verdade só. Mexer aqui
+     * mexe na faixa escolhida; se nenhuma música foi escolhida ainda, o
+     * seletor fica desligado, porque não existe onde guardar.
+     */
+    const linhaDanca = document.createElement("div");
+    linhaDanca.className = "linha";
+    const faixaDoSlot = dados.faixas.find((f) => f.id === slot.faixa);
+    const selDanca = document.createElement("select");
+    const vazioD = document.createElement("option");
+    vazioD.value = "";
+    vazioD.textContent = faixaDoSlot ? "— sem trocar a dança —" : "— escolha a música primeiro —";
+    selDanca.appendChild(vazioD);
+    selDanca.disabled = !faixaDoSlot;
+
+    // As quatro que já vêm no jogo, sempre disponíveis.
+    const grupoFab = document.createElement("optgroup");
+    grupoFab.label = "Já vêm no jogo";
+    for (const d of dancasDeFabricaNomes) {
+      const op = document.createElement("option");
+      op.value = d.id;
+      op.textContent = d.nome;
+      if (faixaDoSlot && String(faixaDoSlot.emote) === d.id) op.selected = true;
+      grupoFab.appendChild(op);
+    }
+    selDanca.appendChild(grupoFab);
+
+    // E as compradas nesta conta.
+    if (dancasLiberadas.length) {
+      const grupoMinhas = document.createElement("optgroup");
+      grupoMinhas.label = "Compradas";
+      for (const id of dancasLiberadas) {
+        const op = document.createElement("option");
+        op.value = id;
+        const achado = emotesNaTela.find((e) => String(e.id) === id);
+        op.textContent = achado ? achado.nome : "dança #" + id;
+        if (faixaDoSlot && String(faixaDoSlot.emote) === id) op.selected = true;
+        grupoMinhas.appendChild(op);
+      }
+      selDanca.appendChild(grupoMinhas);
+    }
+
+    /* A dança que a faixa já usa, mas que não está em nenhum dos grupos
+       (comprada em outra conta, ou colada na mão). Sem isto o seletor
+       apareceria vazio e o próximo salvar apagaria a escolha. */
+    if (faixaDoSlot && faixaDoSlot.emote && !dancasDeFabricaNomes.some((d) => d.id === String(faixaDoSlot.emote))
+        && !dancasLiberadas.includes(String(faixaDoSlot.emote))) {
+      const op = document.createElement("option");
+      op.value = String(faixaDoSlot.emote);
+      op.textContent = "dança #" + faixaDoSlot.emote + (dancaLiberada(faixaDoSlot.emote) ? "" : " 🔒 não comprada");
+      op.selected = true;
+      selDanca.appendChild(op);
+    }
+
+    selDanca.addEventListener("change", () => {
+      const alvo = dados.faixas.find((f) => f.id === slot.faixa);
+      if (!alvo) return;
+      alvo.emote = selDanca.value ? Number(selDanca.value) : 0;
+      salvar();
+      desenharLista();
+      desenharSlots();
+    });
+    linhaDanca.append(selDanca);
+
+    caixa.append(tit, linhaPresente, linhaFaixa, linhaDanca);
+    raiz.appendChild(caixa);
+  });
+
+  /* O cartão em branco no fim: é assim que se adiciona mais uma dança. Um
+     cartão vazio de verdade (e não um botão fora da grade) porque ele mostra
+     onde a próxima vai aparecer. */
+  if (dados.slots.length < MAX_SLOTS) {
+    const novo = document.createElement("div");
+    novo.className = "slot novo";
+    novo.textContent = dados.slots.length ? "+ mais um presente" : "+ pendurar uma dança num presente";
+    novo.addEventListener("click", () => {
+      dados.slots.push({ presente: "", faixa: "" });
+      desenharSlots();
+      // Já abre o escolhedor: quem clicou aqui quer escolher o presente.
+      abrirEscolherPresente(dados.slots[dados.slots.length - 1]);
+    });
+    raiz.appendChild(novo);
+  }
+}
+
+/* ───────────────────────── o laço ─────────────────────────
+   O relay é quem sabe a pista (um presente num slot troca a música por lá).
+   1,5s, o mesmo ritmo do /danca no avaliador. */
+async function laco() {
+  try {
+    const antes = JSON.stringify([dados.pista, Object.keys(dados.anims).length, dados.faixas.length]);
+    const pistaLocal = dados.pista;
+    await lerTudo();
+    /* Se o relay ainda está na MESMA ordem que a gente acabou de mandar
+       salvar, não redesenha por cima de quem está digitando. */
+    const depois = JSON.stringify([dados.pista, Object.keys(dados.anims).length, dados.faixas.length]);
+    if (antes !== depois) {
+      if (document.activeElement && document.activeElement.tagName === "INPUT" && editandoTitulo) {
+        // não puxa o tapete de quem edita título
+      } else {
+        desenharLista();
+        desenharSlots();
+      }
+      if (JSON.stringify(pistaLocal) !== JSON.stringify(dados.pista)) aplicarPista(false);
+      else desenharDancaAtual(faixaDaPista());
+    }
+    if (estadoEl.classList.contains("erro") === false) estado("conectado ao relay ✓", "ok");
+  } catch (e) {
+    estado("relay fora do ar? " + e.message, "erro");
+  }
+}
+
+(async () => {
+  try {
+    const r = await fetch("/presentes");
+    presentes = (await r.json()).presentes || [];
+  } catch { /* sem catálogo: os slots ficam só com o texto */ }
+  /* As danças compradas ANTES de desenhar: sem isso a lista pisca sem
+     cadeado e depois com, e quem olha acha que travou sozinho. */
+  await lerDancas();
+  try {
+    await lerTudo();
+  } catch (e) {
+    estado("relay fora do ar? " + e.message, "erro");
+  }
+  desenharLista();
+  desenharSlots();
+  aplicarPista(false);
+  setInterval(laco, 1500);
+  /* A lista de compradas muda por fora (o pagamento cai a qualquer momento,
+     e o launcher a recebe no sinal de vida). 20s é folgado de propósito: a
+     compra feita AQUI já destrava na hora, pelo conferirCompra. */
+  setInterval(async () => {
+    const antes = dancasLiberadas.join(",");
+    await lerDancas();
+    if (dancasLiberadas.join(",") !== antes) {
+      if (!$("caixaGrade").hidden) desenharGrade();
+      desenharLista();
+    }
+  }, 20000);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,13 @@
+RAT Games DEV — entrada independente para biblioteca local
+
+1. Extraia a pasta 'dev-catalogo' dentro de:
+   C:\Users\Phili\Desktop\RatGames-DEV\codigo-fonte\
+2. A pasta deve conter:
+   codigo-fonte\dev-catalogo\INICIAR-DEV.cmd
+   codigo-fonte\.build-src\ui\videos\
+   codigo-fonte\node_modules\.bin\electron.cmd
+3. Execute INICIAR-DEV.cmd.
+
+O pacote NAO altera app.asar, nao muda verificacoes de assinatura,
+nao se conecta ao servidor de producao e nao inicia jogos.
+E uma biblioteca local real executada em Electron, com busca e previas.

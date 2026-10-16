@@ -1,0 +1,1545 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>⭐ Painel do Avaliador de Skin</title>
+<style>
+  /* ══════════════════════════════════════════════════════════════════════
+     O PAINEL DO AVALIADOR — página própria, não uma aba do outro
+     ══════════════════════════════════════════════════════════════════════
+
+     São dois jogos diferentes usando a mesma infraestrutura, e a primeira
+     tentativa foi um painel só que trocava de cara conforme o modo. Não
+     funcionou: campos sumindo e voltando confundem mais do que ajudam, e
+     ficou difícil achar as coisas (a subida de música ficou perdida no meio
+     da seção de narração e passou despercebida).
+
+     Agora são duas páginas. Cada uma mostra só o seu jogo, e as duas ficam
+     abertas em abas separadas durante a live.
+
+     GRAVAM NA MESMA CONFIG. Por isso as duas partem da config carregada e
+     escrevem por cima só o que conhecem — ver `coletar()`. Se montassem o
+     objeto do zero, salvar numa apagaria os ajustes da outra, sem erro
+     nenhum, porque o relay devolveria os padrões.
+
+     Tudo local, sem CDN: funciona offline, junto com o relay. */
+  :root {
+    --fundo: #0d1117; --cartao: #161b22; --borda: #2d333b;
+    --texto: #e6edf3; --texto2: #8b949e; --acento: #ffd65c;
+    --ok: #3fb950; --erro: #f85149; --moeda: #f0b72f;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body { background: var(--fundo); color: var(--texto);
+    font: 14px/1.5 "Segoe UI", system-ui, sans-serif;
+    padding: 24px; max-width: 1180px; margin: 0 auto; }
+  h1 { font-size: 22px; margin-bottom: 4px; }
+  .sub { color: var(--texto2); margin-bottom: 16px; }
+  .barra { position: sticky; top: 0; z-index: 20; display: flex; gap: 10px;
+    align-items: center; padding: 12px 0; background: var(--fundo);
+    border-bottom: 1px solid var(--borda); margin-bottom: 18px; }
+  button { background: var(--acento); color: #241d04; border: 0; border-radius: 8px;
+    padding: 9px 18px; font-weight: 700; font-size: 14px; cursor: pointer; }
+  button.secundario { background: var(--cartao); color: var(--texto); border: 1px solid var(--borda); }
+  button.perigo { background: transparent; color: var(--erro); border: 1px solid var(--borda); padding: 4px 10px; }
+  button.mini { background: transparent; color: var(--texto2); border: 1px solid var(--borda); padding: 4px 10px; }
+  button.mini:hover { color: var(--texto); }
+  button:hover { filter: brightness(1.15); }
+  #estado { color: var(--texto2); margin-left: auto; }
+  #estado.ok { color: var(--ok); }
+  #estado.erro { color: var(--erro); }
+  h2 { font-size: 15px; color: var(--texto2); text-transform: uppercase;
+       letter-spacing: .08em; margin: 26px 0 10px; }
+  .cartao { background: var(--cartao); border: 1px solid var(--borda);
+    border-radius: 12px; padding: 14px; border-top: 3px solid var(--faixa, var(--borda)); }
+  .cab { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .cab img { width: 44px; height: 44px; border-radius: 8px; background: #0a0d12; object-fit: contain; }
+  .cab .tit { font-size: 15px; font-weight: 700; }
+  .cab .desc, .desc { color: var(--texto2); font-size: 12px; }
+  .campos { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 7px 10px; }
+  label { display: flex; flex-direction: column; gap: 2px; font-size: 11px; color: var(--texto2); }
+  input[type=number], input[type=text], select {
+    background: var(--fundo); color: var(--texto); border: 1px solid var(--borda);
+    border-radius: 6px; padding: 5px 7px; font-size: 13px; width: 100%; }
+  input:focus, select:focus { outline: 1px solid var(--acento); }
+  .largo { grid-column: 1 / -1; }
+  a { color: var(--acento); }
+
+  /* A faixa do topo: qual modo está NO AR. */
+  #faixaModo { position: sticky; top: 0; z-index: 40; margin: -4px 0 14px;
+    padding: 9px 14px; border-radius: 10px; font-size: 13px; font-weight: 700;
+    border: 1px solid var(--borda); background: #2a2312; color: #ffd65c; }
+  #faixaModo.outro { background: #16202c; color: #79c0ff; }
+  #faixaModo span { font-weight: 400; opacity: .8; }
+  #faixaModo a { color: inherit; }
+
+  /* Tabela das faixas de nota. Informativa: as notas moram no Config.luau do
+     jogo, não na config do relay — um campo editável que não edita nada é
+     pior que nenhum campo. */
+  .notas { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 6px; }
+  .notas th, .notas td { padding: 6px 10px; border-bottom: 1px solid var(--borda); text-align: left; }
+  .notas th { color: var(--texto2); font-weight: 600; }
+  .notas td:first-child { color: var(--moeda); font-weight: 700; white-space: nowrap; }
+  .notas tbody tr:last-child td { border-bottom: 0; }
+  .notas .lenda td { color: #ffd65c; }
+  .notas td input[type=number] { width: 100%; min-width: 90px; }
+  .notas .efeito { color: var(--texto2); font-size: 12px; }
+  .notas td:last-child { width: 1%; }
+
+  /* ── subida de música (uma por dança) ── */
+  #caixasMusica { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 10px; }
+  .cxAudio { background: var(--cartao); border: 1px solid var(--borda); border-radius: 10px; padding: 10px 12px; }
+  .cxAudio.tocandoAgora { border-color: var(--ok); }
+  .cxAudio summary { cursor: pointer; font-size: 13px; font-weight: 600; }
+  .cxAudio summary .conta { color: var(--texto2); font-weight: 400; font-size: 11px; margin-left: 6px; }
+  .cxAudio .acoes { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin: 9px 0 7px; }
+  .cxAudio .lista { display: flex; flex-wrap: wrap; gap: 5px; }
+  .cxAudio .vazio { color: var(--texto2); font-size: 11px; font-style: italic; }
+  .ficha { display: inline-flex; border: 1px solid var(--borda); border-radius: 6px; overflow: hidden; }
+  .ficha button { background: transparent; color: var(--texto2); border: 0;
+    padding: 3px 8px; font-size: 11px; font-weight: 600; }
+  .ficha button:hover { color: var(--texto); background: #1f2630; }
+  .ficha.tocando { border-color: var(--ok); }
+  .ficha .x:hover { color: var(--erro); }
+
+  /* ── gatilhos de dança por presente ── */
+  .busca { position: relative; margin-bottom: 14px; }
+  .busca input[type=text] { padding: 10px 12px; font-size: 15px; }
+  /* O presente escolhido pra testar FICA aqui: apertar ▶ de novo não pede
+     digitar o nome outra vez, que era o que tornava testar insuportável. */
+  #fixado { display: flex; align-items: center; gap: 10px; margin-top: 10px;
+    padding: 8px 10px; border: 1px solid var(--borda); border-radius: 10px;
+    background: #10141c; }
+  #fixado img { width: 36px; height: 36px; object-fit: contain; border-radius: 6px;
+    background: #0a0d12; }
+  #fixado img:not([src]) { visibility: hidden; }
+  #fixadoNome { font-weight: 600; }
+  #fixado .mo { color: var(--moeda); font-size: 12px; font-weight: 700; }
+  #fixadoPlay { margin-left: auto; color: var(--ok); border-color: #2a3b2f; }
+  #fixadoPlay:disabled { color: var(--texto2); cursor: default; }
+
+  #resultados, #resultadosSim, #resultadosTroca {
+    position: absolute; top: 100%; left: 0; right: 0; z-index: 10;
+    background: var(--cartao); border: 1px solid var(--borda); border-radius: 10px;
+    max-height: 340px; overflow-y: auto; display: none; margin-top: 4px; }
+  #resultados .item, #resultadosSim .item, #resultadosTroca .item {
+    display: flex; align-items: center; gap: 10px; padding: 7px 12px; cursor: pointer; }
+  #resultados .item:hover, #resultadosSim .item:hover, #resultadosTroca .item:hover { background: #1f2630; }
+  #resultados img, #resultadosSim img, #resultadosTroca img {
+    width: 34px; height: 34px; object-fit: contain; border-radius: 6px; background: #0a0d12; }
+  #resultados .m, #resultadosSim .m, #resultadosTroca .m {
+    margin-left: auto; color: var(--moeda); font-weight: 700; font-size: 12px; }
+  .linhaGatilho { display: flex; align-items: flex-start; gap: 10px; padding: 10px;
+    border-bottom: 1px solid var(--borda); }
+  .linhaGatilho:last-child { border-bottom: 0; }
+  .linhaGatilho .col1 { flex: none; display: flex; flex-direction: column; gap: 4px;
+    align-items: center; width: 40px; }
+  .linhaGatilho img { width: 40px; height: 40px; object-fit: contain; border-radius: 6px;
+    background: #0a0d12; }
+  /* A imagem é um BOTÃO: clicar nela troca o presente do gatilho. Sem a
+     borda no hover ninguém descobre que dá pra clicar. */
+  .linhaGatilho img.trocar { cursor: pointer; border: 1.5px solid transparent; }
+  .linhaGatilho img.trocar:hover { border-color: var(--acento); }
+  .linhaGatilho .play { width: 40px; padding: 2px 0; color: var(--ok); border-color: #2a3b2f; }
+  .linhaGatilho .play:hover { background: #16241a; }
+  .linhaGatilho .quem { font-weight: 600; width: 130px; flex: none; }
+  .linhaGatilho .mo { color: var(--moeda); font-size: 12px; font-weight: 700; }
+  .linhaGatilho .ajustes { flex: 1; display: grid; gap: 6px 8px;
+    grid-template-columns: repeat(auto-fit, minmax(88px, 1fr)); }
+  .linhaGatilho .ajustes .largo { grid-column: 1 / -1; }
+  .linhaGatilho input[type=color] { border: 1px solid var(--borda); border-radius: 6px;
+    background: var(--fundo); height: 26px; width: 100%; padding: 2px; cursor: pointer; }
+
+  /* ── testes rápidos ── */
+  .simular { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 10px; }
+  .simular input[type=text] { width: 220px; }
+  #simIdentidade { color: var(--texto2); font-size: 12px; }
+  .dica { color: var(--texto2); font-size: 12px; margin-top: 20px; }
+  /* Embutido no shell do /painel (?embutido=1): o cabeçalho é do shell. */
+  body.embutido h1, body.embutido > .sub { display: none; }
+</style>
+</head>
+<body>
+  <script>if (new URLSearchParams(location.search).has("embutido")) document.body.classList.add("embutido");</script>
+  <h1>⭐ Painel do Avaliador de Skin</h1>
+  <div class="sub">A banca que dá nota pra skin de quem chega. Este painel é <b>só deste modo</b> —
+  o da multidão é outra página.</div>
+
+  <div class="barra">
+    <button id="salvar">💾 Salvar</button>
+    <button id="recarregar" class="secundario">↩️ Recarregar</button>
+    <button id="exportarPreset" class="secundario" title="Baixa um arquivo com toda a configuração de agora">⬇️ Exportar preset</button>
+    <button id="importarPreset" class="secundario" title="Aplica um preset por cima do que já está salvo">⬆️ Importar preset</button>
+    <input type="file" id="arquivoPreset" accept=".json,application/json" hidden>
+    <span id="estado">carregando…</span>
+  </div>
+
+  <div id="faixaModo"></div>
+
+  <h2>🎛️ Pôr no ar</h2>
+  <div class="cartao" style="--faixa:#d29922">
+    <div class="campos">
+      <label class="largo">modo da live
+        <select data-caminho="geral.modo" data-texto="1">
+          <option value="avaliador">⭐ Avaliador de skin — este painel</option>
+          <option value="multidao">👥 Multidão — todo mundo dança na grade</option>
+        </select></label>
+      <div class="largo desc">A troca vale na hora: o jogo aplica em até 3s, sem reiniciar nada.
+      Escolher <b>multidão</b> aqui manda a live pro outro jogo — e aí é o outro painel que
+      manda. <a href="/painel.html" target="_blank">abrir o painel da Multidão ↗</a></div>
+    </div>
+  </div>
+
+  <h2>🎥 Pra onde a câmera olha</h2>
+  <div class="cartao" style="--faixa:#58a6ff">
+    <div class="cab"><div>
+      <div class="desc">Vale na hora (o jogo aplica em até 3s) e nos <b>dois</b> jogos.
+      <b>Livre</b> devolve a câmera pro Roblox e te dá um personagem pra andar e olhar com o
+      mouse — é a única forma de a câmera padrão se mover, ela precisa de alguém pra seguir.
+      Enquanto estiver livre, <b>o seu boneco aparece na cena</b>: volte pro automático antes
+      de gravar.</div>
+    </div></div>
+    <div class="simular">
+      <button class="mini" data-camera="auto">🎬 Automática (segue quem chega)</button>
+      <button class="mini" data-camera="podio">🏛️ Mostrar o pódio no mapa</button>
+      <button class="mini" data-camera="livre">🕹️ Câmera livre do Roblox</button>
+      <span id="camAgora"></span>
+    </div>
+    <div class="desc" style="margin-top:8px">Os <b>mesmos três botões existem dentro do jogo</b>,
+    no cantinho de baixo à direita — ao vivo, sair do Studio pra vir aqui custa segundos.
+    Quem escolher por último manda, venha daqui ou de lá.</div>
+  </div>
+
+  <h2>🏛️ O pódio no mapa</h2>
+  <div class="cartao" style="--faixa:#f0b72f">
+    <div class="cab"><div>
+      <div class="tit">Quem mais apoiou, de corpo presente</div>
+      <div class="desc">Uma construção <b>permanente</b> no mapa: blocos em degrau, o
+      <b>1º lugar GIGANTE</b> em cima do mais alto, com a skin real de cada um. Fica longe da
+      formação — a fila nunca encosta nele.
+      <br>Atualiza sozinho conforme o placar muda. O boneco de cada lugar só é refeito quando
+      a <b>pessoa</b> daquele lugar muda; se só o número mudou, é troca de texto.</div>
+    </div></div>
+    <div class="campos">
+      <label>quantos lugares (<b>0 = sem pódio</b>)
+        <input type="number" data-caminho="geral.podio_fisico" min="0" max="5" step="1"></label>
+      <label class="largo">o que a placa diz
+        <input type="text" data-caminho="geral.podio_fisico_titulo" data-texto="1"
+               placeholder="OS DE MAIOR AURA"></label>
+    </div>
+  </div>
+
+  <h2>📺 Os dois quadros do OBS</h2>
+  <div class="cartao" style="--faixa:#b14bff">
+    <div class="cab"><div>
+      <div class="tit">Dois rankings, dois quadros</div>
+      <div class="desc">Um lista quem mais <b>apoiou</b> (o valor do que mandou), o outro quem
+      mais <b>participou</b> (quantas vezes tocou o coração). São leituras diferentes da mesma
+      live: fundidas num número só, quem manda um presente caro e some empata com quem passou a
+      transmissão inteira participando.
+      <br>Ponha cada URL como <b>Fonte de Navegador</b> no OBS / TikTok Live Studio. Use
+      <b>localhost</b>, nunca 127.0.0.1 — o Live Studio recusa o segundo.</div>
+    </div></div>
+
+    <div class="campos">
+      <label>quantos aparecem (apoio)
+        <input type="number" data-caminho="overlay.top_aura" min="1" max="10" step="1"></label>
+      <label>título do quadro
+        <input type="text" data-caminho="overlay.titulo_aura" data-texto="1"></label>
+      <label>o que vem depois do número
+        <input type="text" data-caminho="overlay.sufixo_aura" data-texto="1"></label>
+
+      <label>quantos aparecem (participação)
+        <input type="number" data-caminho="overlay.top_energia" min="1" max="10" step="1"></label>
+      <label>título do quadro
+        <input type="text" data-caminho="overlay.titulo_energia" data-texto="1"></label>
+      <label>o que vem depois do número
+        <input type="text" data-caminho="overlay.sufixo_energia" data-texto="1"></label>
+    </div>
+
+    <div class="desc" style="margin-top:10px">
+      🔗 <b id="urlAura"></b> <button class="mini" data-copiar="urlAura">copiar</button><br>
+      🔗 <b id="urlEnergia"></b> <button class="mini" data-copiar="urlEnergia">copiar</button>
+    </div>
+    <div class="desc" style="margin-top:10px"><b>Sobre as palavras:</b> os títulos padrão evitam
+    de propósito "moeda", "presente" e "curtida". Isso aparece na tela da transmissão, e um
+    quadro anunciando "TOP MOEDAS" lê como cobrança de presente — que é justamente o que dá
+    punição. O mesmo vale pra placa do pódio.</div>
+  </div>
+
+  <h2>🎵 Dança e música</h2>
+  <div class="cartao" style="--faixa:#b14bff">
+    <div class="cab"><div>
+      <div class="tit">Uma música pra cada dança — <b>a subida é aqui</b></div>
+      <div class="desc">A dança é <b>persistente</b>: entra e fica até outra trocar, não volta
+      sozinha pro Jamal. Quando ela troca (por presente ou pelo seletor abaixo), esta página
+      <b>troca a música sozinha</b> e toca em loop.
+      <br><b>Deixe esta aba aberta durante a live</b> — quem toca a música é este navegador,
+      e é assim que ela entra na transmissão junto com o resto do som do PC. O áudio só começa
+      depois do primeiro clique na página: é regra do navegador, não dá pra contornar.
+      <br>Os créditos dos criadores estão no rótulo de cada dança e devem aparecer na live,
+      como combinado com eles.</div>
+    </div></div>
+    <div class="campos">
+      <label class="largo">dança no ar — troca ao <b>Salvar</b>
+        <select data-caminho="geral.danca" data-texto="1"></select></label>
+    </div>
+    <div id="palcoMusica" style="margin-top:12px">
+      <div class="campos" style="align-items:center">
+        <button type="button" class="mini" id="btPausa">⏸️ Pausar</button>
+        <button type="button" class="mini" id="btInicio">⏮️ Tocar do início</button>
+        <button type="button" class="mini" id="btLoop">🔁 Loop: ligado</button>
+        <span id="musAgora" class="desc" style="margin-left:auto"></span>
+      </div>
+      <div id="musPausada" style="display:none;margin-top:8px;padding:8px 10px;
+           border-radius:8px;background:#3a1d1d;color:#ffb4b4;font-weight:700">
+        ⏸️ MÚSICA PAUSADA — nenhuma dança vai tocar até você clicar em Continuar.
+      </div>
+    </div>
+    <div id="caixasMusica" style="margin-top:12px"></div>
+  </div>
+
+  <h2>🏆 Pódio das maiores notas</h2>
+  <div class="cartao" style="--faixa:#f0b72f">
+    <div class="cab"><div>
+      <div class="tit">De tempos em tempos a live para e mostra quem lidera</div>
+      <div class="desc">É a única hora em que o modo olha pra trás — o resto do tempo é sempre a
+      pessoa da vez — e é o que dá ao público um motivo pra ficar depois da própria avaliação:
+      sair do pódio dói, e voltar pra ele custa presente.
+      <br>Guarda <b>a melhor nota de cada pessoa</b>, não uma por avaliação: senão quem manda o
+      mesmo presente caro três vezes tomaria o pódio sozinho e ninguém mais apareceria.</div>
+    </div></div>
+    <div class="campos">
+      <label>a cada quantos minutos (<b>0 = desligado</b>)
+        <input type="number" data-caminho="geral.podio_min" min="0" max="120" step="1"></label>
+      <label>quanto tempo fica na tela (s)
+        <input type="number" data-caminho="geral.podio_s" min="3" max="60" step="1"></label>
+    </div>
+  </div>
+
+  <h2>⭐ A banca — como a nota é comprada</h2>
+  <div class="cartao" style="--faixa:#ffd65c">
+    <div class="cab"><div>
+      <div class="tit">Ninguém pede presente: o jogo mostra o que ele faz</div>
+      <div class="desc">Quem só comenta tira <b>no máximo 3</b> e leva <b>MOGGED</b> — pisca
+      vermelho e a câmera recua. Quem manda presente sobe de faixa, e a partir de
+      <b>10.000 moedas</b> entra <b>gigante</b>, na frente de todo mundo, com nota de três
+      dígitos. Presente também <b>fura a fila</b>.
+      <br>Isto é o oposto de pedir presente na cara dura, que é o que dá punição: a diferença
+      entre "manda rosa!" e ver alguém tirar 2,3 na frente da live inteira.</div>
+    </div></div>
+
+    <div class="campos" style="margin-bottom:12px">
+      <label>nota a partir da qual é <b>MOGGER</b> (verde)
+        <input type="number" data-caminho="avaliador.nota_mogger" min="0" max="1000" step="0.1"></label>
+      <label>nota a partir da qual é <b>LENDA</b> (gigante)
+        <input type="number" data-caminho="avaliador.nota_lenda" min="1" max="1000" step="1"></label>
+      <label>força geral da <b>aura</b> (0–5, <b>0 desliga</b>)
+        <input type="number" data-caminho="avaliador.aura_forca" min="0" max="5" step="1"></label>
+      <label class="largo">⏩ <b>ritmo de quem só comenta</b> (1 = igual a quem paga)
+        <input type="number" data-caminho="avaliador.ritmo_comentario" min="0.15" max="1" step="0.05"></label>
+      <div class="largo desc">Numa live cheia a esmagadora maioria só comenta, e no tempo de quem
+      paga uma fila de 40 leva quase <b>3 minutos</b> pra escoar — a live vira sala de espera.
+      Em <b>0,4</b> cada comentário passa em ~1,9s e a mesma fila escoa em 75s.
+      <br>É também o que dá valor ao presente: quem paga fica <b>mais tempo na tela</b>, e a
+      diferença aparece sem ninguém explicar. Abaixo de 0,15 a pessoa some antes de dar tempo de
+      ler o nome.</div>
+      <div class="largo desc">A aura é <b>só de quem mandou presente</b> — brilho, luz e as
+      partículas do pack <code>VFX Auras</code> (se a pasta estiver no lugar; sem ela, brilho e
+      luz sozinhos). Quem só comenta nunca brilha: é o que faz a aura significar alguma coisa.
+      <br>Este número vale pra quem <b>não tem aura própria</b>. Cada presente pode ter a dele,
+      lá embaixo em <b>O que cada presente faz na tela</b> — e a dele ganha desta.</div>
+    </div>
+
+    <div class="cab" style="margin:14px 0 6px"><div>
+      <div class="tit">Quem manda presente fura toda a fila</div>
+      <div class="desc">Numa live cheia chegam vários comentários por segundo e uma avaliação
+      leva de 4 a 8s — a fila de comentários nunca esvazia. Por isso <b>qualquer</b> presente,
+      nem que seja uma rosa, tem fila própria: é atendida inteira antes da outra <b>e interrompe
+      a avaliação em curso</b>. Quem paga entra em cena em ~3s, por maior que seja o chat.
+      <br>A entrada e a rolagem do número não são cortadas (cortar no meio do sorteio deixaria
+      um número girando sem resultado); o que encurta é o tempo do veredito.
+      <br>Num <b>combo</b> (x100 rosas), só o <b>primeiro</b> recebe nota. Os outros 99 apenas
+      nascem, rápido, um na frente do outro — cem sorteios seguidos do mesmo nome seriam oito
+      minutos de live parada no mesmo rosto.</div>
+    </div></div>
+
+    <table class="notas" id="regua">
+      <thead><tr>
+        <th>a partir de (moedas)</th><th>nota mínima</th><th>nota máxima</th>
+        <th>o que acontece</th><th></th>
+      </tr></thead>
+      <tbody></tbody>
+    </table>
+    <div style="margin-top:10px"><button class="mini" id="addFaixa">+ adicionar faixa</button></div>
+
+    <div class="desc" style="margin-top:12px">A nota é <b>sorteada</b> entre o mínimo e o máximo
+    da faixa — por isso duas pessoas com o mesmo presente não tiram a mesma nota. A faixa que
+    vale é <b>a mais cara que couber</b> no que a pessoa mandou; a linha de <b>0 moedas</b> é a
+    de quem só comentou e não pode faltar.
+    <br>As faixas se ordenam sozinhas ao salvar, então pode adicionar fora de ordem.</div>
+  </div>
+
+  <h2>🧍 A formação e a câmera</h2>
+  <div class="cartao" style="--faixa:#58a6ff">
+    <div class="cab"><div>
+      <div class="tit">Sempre a frente do boneco, perto, com movimento leve</div>
+      <div class="desc">A câmera se põe <b>em frente</b> a quem acabou de chegar, na altura do
+      peito, com o corpo inteiro no quadro — o modo existe pra mostrar a <b>skin</b>. O que
+      sobra de movimento é leve: alguns graus de giro e um respiro de aproximação. Ela nunca
+      filma de cima: existe uma trava dura de elevação no código.
+      <br>Ninguém sai de cena: cada avaliado <b>fica onde parou</b>, dançando, e o próximo nasce
+      <b>na frente dele</b>, mais perto da câmera — a multidão dos anteriores vira o fundo.
+      <br>Ao chegar em <b>100</b>, a formação é limpa e o <b>padrão muda</b>: <b>fila</b> (um na
+      frente do outro) → <b>lado a lado</b> → <b>arco</b> → e volta. É daí que vem a variedade,
+      não de acrobacia de câmera — o cenário é que muda.</div>
+    </div></div>
+    <div class="desc">Não tem o que ajustar aqui: os números moram no <b>jogo</b>
+    (<code>Config.luau</code> → <code>AVALIADOR</code>), onde o enquadramento foi conferido pra
+    caber o corpo inteiro em qualquer escala, do normal ao gigante.</div>
+  </div>
+
+  <h2>🎁 Presente que troca a dança</h2>
+  <div class="cartao" style="--faixa:#3fb950">
+    <div class="cab"><div>
+      <div class="tit">O que cada presente faz na tela</div>
+      <div class="desc">Tamanho, aura, cor, balãozinho, tempo de tela e a dança que ele liga na
+      <b>live inteira</b>. A <b>dança vale nos dois modos</b> — na multidão ela troca a dança dos
+      cem bonecos de uma vez. É o que faz um presente ser reconhecível <b>antes</b> de a nota sair:
+      a rosa entra pequena e discreta, a galáxia entra enorme e roxa, e o público aprende a ler
+      isso sem ninguém explicar.
+      <br>Quem manda o presente <b>entra na fila normalmente</b> e recebe nota — trocar a pista
+      é um bônus, não o lugar dele.
+      <br>Só aparecem aqui os presentes com gatilho próprio; cadastre novos no
+      <a href="/painel.html" target="_blank">painel da Multidão</a>.</div>
+    </div></div>
+    <div class="busca" id="caixaTroca" style="display:none;margin-bottom:10px">
+      <input type="text" id="buscarTroca" placeholder="🔁 qual presente este gatilho passa a ser?">
+      <div id="resultadosTroca"></div>
+    </div>
+    <div id="gatilhos"></div>
+    <div class="desc" style="margin-top:10px"><b>tamanho 0</b> = deixa a nota decidir (é o
+    padrão). Um valor maior ganha da nota; a faixa <b>lenda</b> continua entrando gigante de
+    qualquer jeito. <b>aura 0</b> = usa a força geral lá de cima. <b>cor branca</b> = usa a cor
+    do veredito (verde no MOGGER, vermelho no MOGGED).
+    <br>⚠️ <b>tamanho</b> é um campo só deste modo — mexer aqui não muda o tamanho na grade da
+    multidão. Já <b>aura</b>, <b>cor</b>, <b>balãozinho</b> e <b>+ tela</b> são <b>os mesmos</b>
+    do painel da multidão: alterá-los aqui altera lá também. É de propósito (são a mesma ideia
+    nos dois jogos), mas vale saber.</div>
+  </div>
+
+  <h2>🧪 Testes rápidos</h2>
+  <div class="cartao" style="--faixa:#3fb950">
+    <div class="cab"><div><div class="desc">Manda o evento pro relay <b>exatamente como a ponte
+    mandaria</b> numa live de verdade — o Roblox em Play recebe e avalia igual.
+    <br><b>O nick do Roblox é obrigatório.</b> O jogo veste o boneco com a skin de uma conta de
+    verdade, e sem uma conta que exista ele descarta o evento — nada apareceria na tela.</div>
+    </div></div>
+    <div class="simular">
+      <input type="text" id="simNick" placeholder="nick do Roblox (ex.: builderman)">
+      <span id="simIdentidade">digite um nick do Roblox</span>
+    </div>
+    <div class="simular">
+      <label style="flex-direction:row;align-items:center;gap:6px">quantos de uma vez
+        <input type="number" id="simVezes" min="1" max="300" step="1" value="1" style="width:70px"></label>
+      <label style="flex-direction:row;align-items:center;gap:6px">e são
+        <select id="simDistintos" style="width:auto">
+          <option value="1">pessoas diferentes (enche a fila)</option>
+          <option value="">a mesma pessoa repetindo</option>
+        </select></label>
+    </div>
+    <div class="simular">
+      <button class="mini" data-simular="comentario">💬 Comentário (nota da faixa de 0 moedas)</button>
+      <button class="mini" data-simular="seguiu">➕ Seguiu</button>
+      <button class="mini" data-simular="compartilhou">📤 Compartilhou</button>
+      <button class="mini" data-simular="curtida">❤️ Curtida</button>
+    </div>
+    <div id="fixado">
+      <img id="fixadoImg" alt="">
+      <div><div id="fixadoNome">nenhum presente escolhido</div>
+        <div class="mo" id="fixadoMoedas"></div></div>
+      <button class="mini" id="fixadoPlay">▶ testar de novo</button>
+    </div>
+    <div class="busca" style="margin-top:10px">
+      <input type="text" id="buscarSim" placeholder="🔍 Escolher outro presente pra testar…">
+      <div id="resultadosSim"></div>
+    </div>
+    <div class="desc" style="margin-top:6px">O presente escolhido <b>fica aqui</b> — dá pra
+    apertar ▶ quantas vezes quiser sem digitar de novo. Só troca quando você escolher outro,
+    ou quando apertar o ▶ de algum gatilho lá em cima.</div>
+    <div class="desc" style="margin-top:8px">Com <b>pessoas diferentes</b>, cada repetição vira
+    um avaliado próprio na fila — é assim que dá pra ver a formação encher, o ciclo virar em 100
+    e o padrão trocar sem esperar uma live inteira. Com <b>a mesma pessoa</b>, tudo cai no mesmo
+    nome no pódio.</div>
+  </div>
+
+  <div class="dica">🎬 Overlay do rank pro OBS: <b id="linkOverlay">http://localhost:8000/overlay.html</b></div>
+
+<script>
+  const TOKEN_LEITURA = "pull-local";
+  const TOKEN_ESCRITA = "push-local";
+
+  const $ = (s) => document.querySelector(s);
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+  /* Lista FECHADA e igual à do relay (DANCAS_VALIDAS) e à do jogo (tabela
+     DANCAS no Config.luau) — uma chave inventada aqui falharia CALADA lá, com
+     a dança simplesmente não trocando no meio da live.
+     Os créditos vão no rótulo porque é obrigação assumida com os criadores. */
+  const DANCAS = [
+    ["", "(não troca a dança)"],
+    ["jamal", "🕺 Jamal — by Setalcix Emote Creations"],
+    ["moonwalk", "🌙 Moonwalk — by Blast Motion"],
+    ["gangnam", "🐴 Gangnam Style — by Our new group!"],
+    ["macarena", "💃 Macarena — by Voxelates"],
+  ];
+  // O balãozinho ao lado do nome. Mesma lista do painel da multidão — as
+  // imagens moram no Config.luau do jogo, que é quem as resolve.
+  const ICONES = ["", "rosquinha", "oculos", "galaxia"];
+
+  const CAT_MUSICA = DANCAS.slice(1).map(([chave, rotulo]) =>
+    ({ cat: "musica_" + chave, chave, titulo: "Música da dança <b>" + esc(rotulo) + "</b>" }));
+
+  $("[data-caminho='geral.danca']").innerHTML = DANCAS.slice(1)
+    .map(([v, r]) => `<option value="${v}">${esc(r)}</option>`).join("");
+
+  $("#linkOverlay").textContent = location.origin + "/overlay.html";
+  $("#urlAura").textContent = location.origin + "/rank.html?tipo=aura";
+  $("#urlEnergia").textContent = location.origin + "/rank.html?tipo=energia";
+  for (const b of document.querySelectorAll("[data-copiar]")) {
+    b.addEventListener("click", async () => {
+      await navigator.clipboard.writeText($("#" + b.dataset.copiar).textContent);
+      avisar("URL copiada ✓", "ok");
+    });
+  }
+
+  // ── caminhos aninhados ("geral.danca") ──
+  const pegar = (o, c) => c.split(".").reduce((x, k) => (x == null ? undefined : x[k]), o);
+  function por(obj, caminho, valor) {
+    const partes = caminho.split(".");
+    let o = obj;
+    for (const k of partes.slice(0, -1)) o = o[k] ??= {};
+    o[partes.at(-1)] = valor;
+  }
+
+  function avisar(msg, classe) {
+    const el = $("#estado");
+    el.textContent = msg;
+    el.className = classe || "";
+  }
+
+  // ── catálogo de presentes (imagem e valor em moedas) ──
+  let catalogo = [];
+  const porNome = new Map();
+  async function carregarCatalogo() {
+    try {
+      catalogo = (await (await fetch("/presentes")).json()).presentes || [];
+    } catch { catalogo = []; }
+    for (const p of catalogo) porNome.set(p.nome, p);
+  }
+  const infoDoCatalogo = (nome) =>
+    porNome.get(nome) || { nome, rotulo: nome, moedas: null, imagem: null };
+
+  /* ══════════════════════════════════════════════════════════════════════
+     SALVAR SEM PISAR NO OUTRO PAINEL
+     ══════════════════════════════════════════════════════════════════════
+
+     Os dois painéis gravam na MESMA config. Se este montasse o objeto do
+     zero a partir do que está na tela, salvar aqui apagaria a câmera, a
+     formação da multidão, o balão do nome e a voz — tudo que só existe lá.
+     E sem erro nenhum: o relay devolveria os padrões e pareceria que o outro
+     painel "esqueceu" as configurações.
+
+     Então parte-se da última config carregada e escreve-se por cima só o que
+     esta página conhece. */
+  let carregado = {};
+
+  function preencher(cfg) {
+    carregado = cfg;
+    for (const el of document.querySelectorAll("[data-caminho]")) {
+      const v = pegar(cfg, el.dataset.caminho);
+      if (v !== undefined && v !== null) el.value = v;
+    }
+    montarRegua((cfg.avaliador || {}).faixas || []);
+    montarGatilhos(cfg.presentes || {});
+    montarCaixasMusica();
+    avisarModo();
+    mostrarCamera();
+  }
+
+  function coletar() {
+    const cfg = JSON.parse(JSON.stringify(carregado));
+    for (const el of document.querySelectorAll("[data-caminho]")) {
+      por(cfg, el.dataset.caminho, el.dataset.texto ? el.value : Number(el.value));
+    }
+    // A régua é REFEITA a partir das linhas da tabela: tirar uma faixa tem
+    // que de fato tirá-la, e um merge com a config antiga a ressuscitaria.
+    cfg.avaliador = cfg.avaliador || {};
+    cfg.avaliador.faixas = [...$("#regua tbody").rows].map((tr) => ({
+      moedas: Number(tr.querySelector("[data-f=moedas]").value),
+      min: Number(tr.querySelector("[data-f=min]").value),
+      max: Number(tr.querySelector("[data-f=max]").value),
+    }));
+    /* O visual de cada presente: escreve DENTRO do efeito que já existe, sem
+       recriá-lo — os outros campos (prioridade, vida, cinemática, colosso)
+       são do painel da multidão e não podem se perder aqui. */
+    for (const el of $("#gatilhos").querySelectorAll("[data-g]")) {
+      const efeito = (cfg.presentes || {})[el.dataset.g];
+      if (!efeito) continue;
+      efeito[el.dataset.c] = el.type === "color"
+        ? el.value.replace("#", "").toUpperCase()
+        : (el.type === "number" ? Number(el.value) : el.value);
+    }
+    return cfg;
+  }
+
+  async function carregar() {
+    avisar("carregando…");
+    try {
+      const r = await fetch("/config", { headers: { "x-token": TOKEN_LEITURA } });
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      preencher(await r.json());
+      avisar("configuração carregada ✓", "ok");
+    } catch (e) {
+      // Este catch também pega erro de DESENHO, e aí dizer "não falei com o
+      // relay" mentiria: o console leva o erro de verdade.
+      console.error("falha ao carregar/desenhar o painel:", e);
+      avisar("falhou: " + e.message, "erro");
+    }
+  }
+
+  async function salvar() {
+    avisar("salvando…");
+    try {
+      const r = await fetch("/config", {
+        method: "POST",
+        headers: { "x-token": TOKEN_ESCRITA, "content-type": "application/json" },
+        body: JSON.stringify(coletar()),
+      });
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      preencher((await r.json()).config);
+      avisar("salvo ✓ — o jogo já está obedecendo", "ok");
+    } catch (e) {
+      avisar("falhou: " + e.message, "erro");
+    }
+  }
+  /**
+   * ══════════════════════════════════════════════════════════════════════
+   * RELÊ A CONFIG ANTES DE SALVAR. (13/08/2026)
+   * ══════════════════════════════════════════════════════════════════════
+   *
+   * Mesma correção do painel da multidão, e pelo mesmo motivo: os dois
+   * gravam na MESMA config, cada um guarda um RETRATO dela ao abrir, e quem
+   * salva por último devolve o retrato inteiro -- desfazendo o que o outro
+   * salvou no meio-tempo.
+   *
+   * Foi o que produziu "troquei a dança, salvei, e voltou para o padrão":
+   * não era o salvar falhando, era o outro painel devolvendo a dança antiga.
+   *
+   * `preencher` NÃO é chamado aqui: repintar agora apagaria o que a pessoa
+   * acabou de mexer e ainda não salvou.
+   */
+  async function salvarComBaseFresca() {
+    try {
+      const r = await fetch("/config", { headers: { "x-token": TOKEN_LEITURA } });
+      if (r.ok) carregado = await r.json();
+    } catch {
+      /* Relay fora do ar: segue com o retrato antigo e deixa o salvar avisar. */
+    }
+    return salvar();
+  }
+
+  $("#salvar").addEventListener("click", salvarComBaseFresca);
+  $("#recarregar").addEventListener("click", carregar);
+  const PRESET_QUAL = "avaliador";
+  /* ══════════════════════════════════════════════════════════════════════
+     PRESETS: EXPORTAR E IMPORTAR
+     ══════════════════════════════════════════════════════════════════════
+
+     Pedido do dono em 13/08/2026: poder levar a configuração de uma máquina
+     para outra "sem perder as que já tão salva da rapazeada".
+
+     Por isso IMPORTAR NÃO SUBSTITUI: manda em `/config/mesclar`, no relay,
+     que aplica o preset POR CIMA do que já existe -- o que o arquivo não
+     menciona continua como estava. O `POST /config` normal apagaria o resto
+     de volta ao padrão de fábrica, e a pessoa só descobriria na live
+     seguinte, sem ligar uma coisa à outra.
+
+     E antes de aplicar, o painel BAIXA SOZINHO um arquivo com a configuração
+     de agora. É a rede: mesmo que o preset importado seja um desastre,
+     desfazer é importar o arquivo que acabou de cair na pasta de downloads.
+
+     O mesmo bloco existe no outro painel. São dois arquivos de propósito
+     (multidão e avaliador são telas diferentes), mas a REGRA é uma só, e ela
+     mora no relay justamente para não divergir. */
+  const PRESET_MARCA = "ratgames-preset";
+
+  function baixarArquivo(nome, dados) {
+    const url = URL.createObjectURL(
+      new Blob([JSON.stringify(dados, null, 2)], { type: "application/json" }),
+    );
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = nome;
+    a.click();
+    // Sem o revoke o blob fica na memória da aba a live inteira.
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+  }
+
+  /* Data no nome do arquivo: quem exporta três vezes num dia precisa saber
+     qual é qual sem abrir os três. */
+  function carimboDeAgora() {
+    const d = new Date();
+    const dois = (n) => String(n).padStart(2, "0");
+    return (
+      d.getFullYear() + "-" + dois(d.getMonth() + 1) + "-" + dois(d.getDate()) +
+      "-" + dois(d.getHours()) + dois(d.getMinutes())
+    );
+  }
+
+  async function lerConfigAgora() {
+    const r = await fetch("/config", { headers: { "x-token": TOKEN_LEITURA } });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    return await r.json();
+  }
+
+  function empacotar(config) {
+    return {
+      marca: PRESET_MARCA,
+      painel: PRESET_QUAL,
+      versao: 1,
+      quando: new Date().toISOString(),
+      config,
+    };
+  }
+
+  async function exportarPreset() {
+    avisar("exportando…");
+    try {
+      const config = await lerConfigAgora();
+      baixarArquivo("ratgames-" + PRESET_QUAL + "-" + carimboDeAgora() + ".json", empacotar(config));
+      avisar("preset exportado ✓ — está na sua pasta de downloads", "ok");
+    } catch (e) {
+      avisar("falhou: " + e.message, "erro");
+    }
+  }
+
+  async function importarPreset(arquivo) {
+    avisar("importando…");
+    try {
+      let pacote;
+      try {
+        pacote = JSON.parse(await arquivo.text());
+      } catch {
+        throw new Error("esse arquivo não é um JSON válido");
+      }
+      /* Aceita o pacote com marca OU a config crua: quem editou o arquivo à
+         mão e apagou o cabeçalho não pode ficar de fora por causa disso. */
+      const config = pacote && pacote.marca === PRESET_MARCA ? pacote.config : pacote;
+      if (!config || typeof config !== "object" || Array.isArray(config)) {
+        throw new Error("não parece um preset do RatGames");
+      }
+
+      // A REDE, antes de mexer: o que está valendo agora vai para o disco.
+      try {
+        baixarArquivo(
+          "ratgames-" + PRESET_QUAL + "-ANTES-DE-IMPORTAR-" + carimboDeAgora() + ".json",
+          empacotar(await lerConfigAgora()),
+        );
+      } catch (e) {
+        console.warn("não consegui guardar o backup antes de importar:", e);
+      }
+
+      const r = await fetch("/config/mesclar", {
+        method: "POST",
+        headers: { "x-token": TOKEN_ESCRITA, "content-type": "application/json" },
+        body: JSON.stringify(config),
+      });
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      preencher((await r.json()).config);
+      avisar("preset importado ✓ — o que ele não menciona continuou como estava", "ok");
+    } catch (e) {
+      avisar("falhou: " + e.message, "erro");
+    }
+  }
+
+  $("#exportarPreset").addEventListener("click", exportarPreset);
+  $("#importarPreset").addEventListener("click", () => $("#arquivoPreset").click());
+  $("#arquivoPreset").addEventListener("change", (e) => {
+    const arq = e.target.files && e.target.files[0];
+    // Zera o valor para escolher o MESMO arquivo duas vezes seguidas ainda
+    // disparar o `change` -- senão a segunda tentativa não faz nada.
+    e.target.value = "";
+    if (arq) importarPreset(arq);
+  });
+
+
+  /* ══════════════════════════════════════════════════════════════════════
+     A RÉGUA DA NOTA — editável linha a linha
+     ══════════════════════════════════════════════════════════════════════
+
+     Era uma tabela fixa no código do jogo. Não devia: quanto vale um
+     presente, a partir de quanto se vira MOGGER e quando alguém entra
+     gigante é a regra ECONÔMICA da live, e mudar isso não pode pedir abrir
+     o Studio.
+
+     A coluna "o que acontece" é CALCULADA a partir dos cortes de MOGGER e
+     LENDA — assim ela nunca mente. Escrita à mão, ficaria desatualizada no
+     instante em que o streamer mexesse no corte. */
+  const reguaEl = () => $("#regua tbody");
+
+  function linhaRegua(f) {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td><input type="number" data-f="moedas" min="0" max="10000000" step="1" value="${f.moedas ?? 0}"></td>
+      <td><input type="number" data-f="min" min="0" max="1000" step="0.1" value="${f.min ?? 0}"></td>
+      <td><input type="number" data-f="max" min="0" max="1000" step="0.1" value="${f.max ?? 0}"></td>
+      <td class="efeito"></td>
+      <td><button class="mini perigo" data-tirar="1" title="tirar esta faixa">✕</button></td>`;
+    return tr;
+  }
+
+  function montarRegua(faixas) {
+    const corpo = reguaEl();
+    corpo.innerHTML = "";
+    for (const f of faixas) corpo.appendChild(linhaRegua(f));
+    descreverRegua();
+  }
+
+  function descreverRegua() {
+    const mogger = Number($("[data-caminho='avaliador.nota_mogger']").value);
+    const lenda = Number($("[data-caminho='avaliador.nota_lenda']").value);
+    for (const tr of reguaEl().rows) {
+      const mi = Number(tr.querySelector("[data-f=min]").value);
+      const ma = Number(tr.querySelector("[data-f=max]").value);
+      const cel = tr.querySelector(".efeito");
+      tr.classList.remove("lenda");
+      if (ma >= lenda) {
+        tr.classList.add("lenda");
+        cel.textContent = mi >= lenda
+          ? "👑 sempre LENDA — entra GIGANTE"
+          : "👑 pode dar LENDA";
+      } else if (mi >= mogger) {
+        cel.textContent = "🟢 sempre MOGGER — pisca verde, câmera fecha";
+      } else if (ma >= mogger) {
+        cel.textContent = "🔴/🟢 na sorte, em cima do corte dos " + mogger;
+      } else {
+        cel.textContent = "🔴 sempre MOGGED — pisca vermelho, câmera recua";
+      }
+      if (ma < mi) cel.textContent = "⚠️ máxima abaixo da mínima — vai sair sempre " + mi;
+    }
+  }
+
+  /* ══════════════════════════════════════════════════════════════════════
+     ▶ TESTAR E 🔁 TROCAR, direto na linha do presente
+     ══════════════════════════════════════════════════════════════════════
+
+     Antes, testar um presente pedia digitar o nome dele na busca TODA VEZ —
+     inclusive pra um que já está ali na lista, com a imagem na frente. Agora
+     o ▶ da linha manda aquele presente pro jogo na hora.
+
+     E clicar na IMAGEM troca qual presente é aquele gatilho, mantendo tudo
+     que já foi configurado (tamanho, aura, cor, dança). Sem isso, trocar de
+     presente era apagar o gatilho no outro painel e refazer tudo. */
+  const $g = (s) => $("#gatilhos").querySelector(s);
+  let trocandoPresente = null;
+
+  $("#gatilhos").addEventListener("click", (e) => {
+    const play = e.target.closest("[data-testar]");
+    if (play) {
+      const nome = play.dataset.testar;
+      const i = infoDoCatalogo(nome);
+      fixarTeste(nome);
+      simular({ tipo: "presente", presente: nome, moedas: i.moedas ?? 0, vezes: quantos() },
+        `presente "${i.rotulo}" (${i.moedas ?? "?"} moedas)`);
+      return;
+    }
+    const img = e.target.closest("img.trocar");
+    if (img) {
+      trocandoPresente = img.closest("[data-presente]").dataset.presente;
+      const busca = $("#buscarTroca");
+      $("#caixaTroca").style.display = "";
+      busca.value = "";
+      busca.focus();
+      avisar('escolha o presente novo pro gatilho "' + trocandoPresente + '"');
+    }
+  });
+
+  /* A troca em si: renomeia a CHAVE do presente na config, levando o efeito
+     inteiro junto. É por isso que ela mexe em `carregado` e salva na hora —
+     o gatilho tem que existir com o nome novo antes de a tela ser refeita. */
+  async function trocarPresente(novo) {
+    if (!trocandoPresente || novo === trocandoPresente) return;
+    const cfg = coletar();
+    cfg.presentes = cfg.presentes || {};
+    if (cfg.presentes[novo]) {
+      avisar('"' + novo + '" já tem gatilho próprio', "erro");
+      return;
+    }
+    cfg.presentes[novo] = cfg.presentes[trocandoPresente];
+    delete cfg.presentes[trocandoPresente];
+    trocandoPresente = null;
+    $("#caixaTroca").style.display = "none";
+    avisar("trocando…");
+    try {
+      const r = await fetch("/config", {
+        method: "POST",
+        headers: { "x-token": TOKEN_ESCRITA, "content-type": "application/json" },
+        body: JSON.stringify(cfg),
+      });
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      preencher((await r.json()).config);
+      avisar("gatilho trocado ✓", "ok");
+    } catch (e) {
+      avisar("falhou: " + e.message, "erro");
+    }
+  }
+
+  $("#addFaixa").addEventListener("click", () => {
+    reguaEl().appendChild(linhaRegua({ moedas: 0, min: 0, max: 5 }));
+    descreverRegua();
+  });
+  $("#regua").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-tirar]");
+    if (!b) return;
+    if (reguaEl().rows.length <= 1) {
+      avisar("precisa sobrar pelo menos uma faixa — senão ninguém tira nota", "erro");
+      return;
+    }
+    b.closest("tr").remove();
+    descreverRegua();
+  });
+  // A descrição acompanha a digitação: ver "sempre MOGGED" mudar pra
+  // "sempre MOGGER" enquanto se mexe no número é o que torna a régua legível.
+  $("#regua").addEventListener("input", descreverRegua);
+  for (const c of ["avaliador.nota_mogger", "avaliador.nota_lenda"]) {
+    $(`[data-caminho='${c}']`).addEventListener("input", descreverRegua);
+  }
+
+  // ── uma linha por presente com gatilho próprio ──
+  function montarGatilhos(presentes) {
+    const nomes = Object.keys(presentes).sort((a, b) =>
+      (infoDoCatalogo(b).moedas || 0) - (infoDoCatalogo(a).moedas || 0));
+    if (!nomes.length) {
+      $("#gatilhos").innerHTML = '<div class="desc">Nenhum presente com gatilho próprio ainda. '
+        + 'Cadastre no <a href="/painel.html" target="_blank">painel da Multidão</a> e ele aparece aqui.</div>';
+      return;
+    }
+    $("#gatilhos").innerHTML = nomes.map((nome) => {
+      const i = infoDoCatalogo(nome);
+      const e = presentes[nome] || {};
+      const n = esc(nome);
+      return `<div class="linhaGatilho" data-presente="${n}">
+        <div class="col1">
+          <img class="trocar" title="clique pra trocar o presente deste gatilho"
+               ${i.imagem ? `src="${esc(i.imagem)}"` : ""} alt="">
+          <button class="mini play" data-testar="${n}" title="testar no jogo agora">▶</button>
+        </div>
+        <div class="quem">${esc(i.rotulo)}<div class="mo">🪙 ${i.moedas ?? "?"} moedas</div></div>
+        <div class="ajustes">
+          <label>tamanho
+            <input type="number" data-g="${n}" data-c="escala_aval" min="0" max="4" step="0.1"
+                   value="${Number(e.escala_aval ?? 0)}"></label>
+          <label>aura
+            <input type="number" data-g="${n}" data-c="aura" min="0" max="5" step="1"
+                   value="${Number(e.aura ?? 0)}"></label>
+          <label>cor
+            <input type="color" data-g="${n}" data-c="cor"
+                   value="#${esc(e.cor || "FFFFFF")}"></label>
+          <label>+ tela (s)
+            <input type="number" data-g="${n}" data-c="hold" min="0" max="15" step="0.5"
+                   value="${Number(e.hold ?? 0)}"></label>
+          <label>balãozinho
+            <select data-g="${n}" data-c="icone">
+              ${ICONES.map((k) =>
+                `<option value="${k}"${k === (e.icone || "") ? " selected" : ""}>${k || "(nenhum)"}</option>`).join("")}
+            </select></label>
+          <label class="largo">dança que este presente liga
+            <select data-g="${n}" data-c="danca">
+              ${DANCAS.map(([v, r]) =>
+                `<option value="${v}"${v === (e.danca || "") ? " selected" : ""}>${esc(r)}</option>`).join("")}
+            </select></label>
+        </div></div>`;
+    }).join("");
+  }
+
+  /* ══════════════════════════════════════════════════════════════════════
+     AS MÚSICAS — uma por dança
+     ══════════════════════════════════════════════════════════════════════
+
+     Mesmo endpoint de áudio que a Voz usa (/audios), só que com categorias
+     "musica_<dança>". Aqui só se sobe, ouve e apaga; quem toca na live é o
+     tocador lá embaixo, nesta mesma página. */
+  const musicaEl = $("#caixasMusica");
+  const EXT_OK = ["mp3", "wav", "ogg", "m4a"];
+  let audios = {};
+
+  function montarCaixasMusica() {
+    musicaEl.innerHTML = CAT_MUSICA.map((c) => `
+      <details class="cxAudio" data-cat="${c.cat}" open>
+        <summary>${c.titulo} <span class="conta">vazio</span></summary>
+        <div class="acoes">
+          <button class="mini" data-acao="arquivo" title="suba um mp3/wav pronto">⬆ subir música</button>
+          <button class="mini perigo" data-acao="limpar" hidden>🗑 apagar todas</button>
+        </div>
+        <div class="lista"></div>
+      </details>`).join("");
+    listarAudios();
+  }
+
+  const caixaDe = (cat) => musicaEl.querySelector('[data-cat="' + CSS.escape(cat) + '"]');
+
+  /**
+   * O PROVADOR -- o tocador do botão "ouvir".
+   *
+   * Separado do da live de propósito: conferir uma música não pode cortar a
+   * que está tocando na transmissão.
+   *
+   * ═══════════════════════════════════════════════════════════════════════
+   * O QUE ESTAVA ERRADO AQUI (relatado pelo dono em 12/08/2026)
+   * ═══════════════════════════════════════════════════════════════════════
+   *
+   * "não pausa depois que coloca pra ouvir para testar, e também é bem
+   * confuso". Eram três coisas somadas, e todas fazem o mesmo estrago: som
+   * saindo da máquina sem nenhum jeito óbvio de calar.
+   *
+   *   1. O botão ⏸️ Pausar do palco só falava com o tocador da LIVE. A prévia
+   *      seguia tocando. Para quem está no painel existe UM som e UM botão de
+   *      pausa -- e ele não pausava. Era o principal;
+   *
+   *   2. o "2º clique = parar" dependia de comparar o ELEMENTO da ficha
+   *      (`fichaTocando === ficha`). Só que `listarAudios()` reconstrói o
+   *      `innerHTML` da lista -- em toda subida, todo apagar, toda
+   *      re-listagem. Depois disso a ficha na tela é outro objeto, a
+   *      comparação nunca dá certo, e o 2º clique REINICIA a música em vez de
+   *      parar. Por isso funcionava às vezes;
+   *
+   *   3. o botão continuava escrito "▶ ouvir" enquanto tocava. Nada na tela
+   *      dizia o que estava tocando, nem que clicar de novo parava.
+   *
+   * A correção guarda o NOME DO ARQUIVO, que sobrevive a qualquer
+   * re-renderização, e é o mesmo dado que a lista usa para desenhar.
+   */
+  const provador = new Audio();
+  let previaTocando = null; // o nome do arquivo, nunca o elemento
+
+  /** Cala a prévia. Idempotente: chamar sem nada tocando não faz mal. */
+  function pararPrevia() {
+    provador.pause();
+    provador.removeAttribute("src");
+    previaTocando = null;
+    pintarPrevia();
+    pintarPalco();
+  }
+
+  /* Desenha o estado da prévia nos botões que já estão na tela. Chamado
+     também depois de cada `listarAudios()`, senão a lista volta com todo
+     mundo escrito "ouvir" enquanto uma música toca. */
+  function pintarPrevia() {
+    for (const btn of musicaEl.querySelectorAll("[data-tocar]")) {
+      const eEsta = btn.dataset.tocar === previaTocando;
+      btn.textContent = eEsta ? "⏸ parar" : "▶ ouvir";
+      btn.closest(".ficha")?.classList.toggle("tocando", eEsta);
+    }
+  }
+
+  function ouvir(arq) {
+    // 2º clique na MESMA música = parar. Agora compara nome com nome.
+    if (previaTocando === arq) return pararPrevia();
+
+    previaTocando = arq;
+    const soltar = () => {
+      previaTocando = null;
+      pintarPrevia();
+      pintarPalco();
+    };
+    provador.onended = soltar;
+    provador.onerror = soltar;
+    provador.src = "/audios/" + encodeURIComponent(arq);
+    provador.play().catch(soltar);
+    pintarPrevia();
+    pintarPalco();
+  }
+
+  async function listarAudios() {
+    try {
+      audios = (await (await fetch("/audios")).json()).audios || {};
+    } catch { return; } // relay fora: mantém o que está na tela
+    for (const { cat } of CAT_MUSICA) {
+      const caixa = caixaDe(cat);
+      if (!caixa) continue;
+      const arquivos = audios[cat] || [];
+      caixa.querySelector(".conta").textContent = arquivos.length
+        ? arquivos.length + (arquivos.length === 1 ? " música" : " músicas") : "vazio";
+      caixa.querySelector('[data-acao="limpar"]').hidden = arquivos.length < 1;
+      caixa.querySelector(".lista").innerHTML = arquivos.length
+        ? arquivos.map((arq) => `<span class="ficha">
+            <button data-tocar="${esc(arq)}">▶ ouvir</button>
+            <button class="x" data-apagar="${esc(arq)}">✕</button></span>`).join("")
+        : '<span class="vazio">sem música — a dança entra em silêncio</span>';
+    }
+    marcarTocando();
+    /* A lista acabou de ser redesenhada do zero. Sem isto, a música que está
+       tocando volta com o botão escrito "ouvir" -- e era metade do "não
+       pausa": o botão de parar deixava de existir na tela. */
+    pintarPrevia();
+  }
+
+  async function enviarArquivos(cat) {
+    const inp = document.createElement("input");
+    inp.type = "file";
+    inp.accept = EXT_OK.map((e) => "." + e).join(",");
+    inp.multiple = true;
+    inp.onchange = async () => {
+      for (const arq of inp.files) {
+        const ext = (arq.name.split(".").pop() || "").toLowerCase();
+        if (!EXT_OK.includes(ext)) {
+          avisar(`"${arq.name}": só ${EXT_OK.join(", ")}`, "erro");
+          continue;
+        }
+        try {
+          /**
+           * O ARQUIVO CRU no corpo, com a extensão NA URL -- e não um
+           * FormData.
+           *
+           * O servidor (`rotaAudios` em nucleo-avatares.js) não entende
+           * multipart: ele lê `req.arrayBuffer()` direto e grava esses bytes
+           * como o áudio. Um FormData faz o navegador embrulhar o arquivo em
+           * cabeçalhos e delimitadores -- e era ISSO que ia parar no disco:
+           * a música envolta no envelope do FormData, não a música limpa.
+           * O arquivo aparecia na lista (por isso "às vezes identifica"),
+           * mas o conteúdo estava corrompido, e por isso não tocava.
+           *
+           * A extensão soma o mesmo problema: sem `?ext=`, o servidor grava
+           * tudo como `.webm` -- um .mp3 enviado tocava com o content-type
+           * errado.
+           *
+           * O painel da live (painel.html) já faz do jeito certo; aqui era
+           * a cópia que ficou para trás.
+           */
+          const r = await fetch("/audios/" + encodeURIComponent(cat) + "?ext=" + ext, {
+            method: "POST", headers: { "x-token": TOKEN_ESCRITA }, body: arq,
+          });
+          if (!r.ok) throw new Error("HTTP " + r.status);
+        } catch (e) {
+          avisar("falhou ao subir: " + e.message, "erro");
+        }
+      }
+      await listarAudios();
+      avisar("música no lugar ✓", "ok");
+      // Força reavaliar a dança no ar: se a música que faltava acabou de
+      // chegar, ela deve começar a tocar agora, não só na próxima troca.
+      dancaNoAr = null;
+    };
+    inp.click();
+  }
+
+  async function apagarAudio(arq) {
+    try {
+      await fetch("/audios/" + encodeURIComponent(arq), {
+        method: "DELETE", headers: { "x-token": TOKEN_ESCRITA },
+      });
+    } catch (e) {
+      avisar("falhou ao apagar: " + e.message, "erro");
+    }
+  }
+
+  // Ouvinte delegado: as caixas são refeitas a cada carregar().
+  musicaEl.addEventListener("click", async (e) => {
+    const btn = e.target.closest("button");
+    if (!btn) return;
+    const caixa = btn.closest(".cxAudio");
+    if (!caixa) return;
+    if (btn.dataset.tocar) return ouvir(btn.dataset.tocar);
+    if (btn.dataset.apagar) { await apagarAudio(btn.dataset.apagar); return listarAudios(); }
+    if (btn.dataset.acao === "arquivo") return enviarArquivos(caixa.dataset.cat);
+    if (btn.dataset.acao === "limpar") {
+      if (!confirm("Apagar TODAS as músicas desta dança?")) return;
+      for (const b of caixa.querySelectorAll("[data-apagar]")) await apagarAudio(b.dataset.apagar);
+      listarAudios();
+    }
+  });
+
+  /* ══════════════════════════════════════════════════════════════════════
+     A MÚSICA DA DANÇA NO AR
+     ══════════════════════════════════════════════════════════════════════
+
+     Quem troca a dança é o JOGO, e o painel não fala com o jogo. O caminho é
+     o relay: todo evento passa por ele, então ele anota a dança da vez e o
+     painel pergunta de tempos em tempos.
+
+     Por que o PAINEL toca e não o jogo: no Roblox, som só sai pra quem tem a
+     janela do Studio em foco — e a live captura o som do NAVEGADOR junto.
+     Tocando aqui, a música entra na transmissão do mesmo jeito que a Voz já
+     entra, e dá pra trocar o mp3 sem tocar no jogo. */
+  let dancaNoAr = null;
+  const tocadorDanca = new Audio();
+  tocadorDanca.volume = 0.55;
+
+  /* ── CONTROLE DE PALCO: pausar, continuar, tocar do início, loop ──
+
+     A regra que amarra tudo: PAUSA É DECISÃO DO STREAMER, e gatilho nenhum a
+     desfaz. Se um presente trocasse a dança e a música voltasse sozinha, o
+     botão de pausa seria mentira — a pessoa apertaria pra falar e levaria a
+     música na cara no meio da frase, sem entender por quê.
+
+     O que o gatilho continua fazendo, mesmo pausado: trocar a FAIXA. A dança
+     no ar segue sendo acompanhada, o `src` é atualizado e o rótulo mostra qual
+     é. Ao clicar Continuar, começa a música da dança que está no ar AGORA — e
+     não a que estava tocando quando pausou, que já não é mais a da tela.
+
+     A preferência de loop fica no navegador: recarregar a página no meio da
+     live (acontece) não pode reverter em silêncio uma escolha que muda o som
+     da transmissão. */
+  let musicaPausada = false;
+  let emLoop = localStorage.getItem("musLoop") !== "0";
+  tocadorDanca.loop = emLoop;
+
+  const btPausa = $("#btPausa");
+  const btInicio = $("#btInicio");
+  const btLoop = $("#btLoop");
+  const musAgora = $("#musAgora");
+  const musPausada = $("#musPausada");
+
+  function pintarPalco() {
+    btPausa.textContent = musicaPausada ? "▶️ Continuar" : "⏸️ Pausar";
+    btPausa.style.borderColor = musicaPausada ? "var(--acento)" : "";
+    btPausa.style.color = musicaPausada ? "var(--acento)" : "";
+    btLoop.textContent = emLoop ? "🔁 Loop: ligado" : "➡️ Loop: desligado";
+    musPausada.style.display = musicaPausada ? "" : "none";
+
+    const nome = tocadorDanca.src
+      ? decodeURIComponent(tocadorDanca.src.split("/").pop())
+      : "";
+    const daLive = !nome
+      ? "nenhuma música carregada ainda"
+      : (musicaPausada ? "pausada: " : "tocando: ") + nome;
+    /* A PRÉVIA APARECE AQUI TAMBÉM. São dois tocadores e havia um indicador
+       só: dava para estar saindo som da prévia com a linha dizendo "pausada",
+       e nada na tela explicando de onde vinha o barulho. */
+    musAgora.textContent = previaTocando
+      ? "prévia: " + previaTocando + " — " + daLive
+      : daLive;
+  }
+
+  /* Tocar é sempre uma PROMESSA que pode ser recusada: antes do primeiro
+     clique na página o navegador bloqueia áudio. Engolir a recusa aqui evita
+     encher o console de erro que não é erro — o clique no próprio botão já
+     desbloqueia. */
+  function tocar() {
+    return tocadorDanca.play().catch(() => {});
+  }
+
+  btPausa.addEventListener("click", async () => {
+    /* PAUSAR CALA TUDO, inclusive a prévia.
+       Este é o botão que a mão do streamer procura quando quer silêncio para
+       falar. Ele mandava só no tocador da live, então quem tinha clicado em
+       "ouvir" para testar apertava pausa e o som continuava -- sem nenhum
+       outro botão à vista para calar. Duas fontes de som, um botão de pausa:
+       ele manda nas duas. */
+    pararPrevia();
+    musicaPausada = !musicaPausada;
+    if (musicaPausada) {
+      tocadorDanca.pause();
+    } else if (tocadorDanca.src) {
+      await tocar();
+    }
+    pintarPalco();
+  });
+
+  btInicio.addEventListener("click", async () => {
+    // "Do início" também DESPAUSA: quem pede pra tocar do começo está pedindo
+    // pra ouvir, e deixar pausado seria um botão que não faz nada.
+    // E cala a prévia pelo mesmo motivo: ele está pedindo para ouvir ESTA.
+    pararPrevia();
+    musicaPausada = false;
+    if (tocadorDanca.src) {
+      tocadorDanca.currentTime = 0;
+      await tocar();
+    }
+    pintarPalco();
+  });
+
+  btLoop.addEventListener("click", () => {
+    emLoop = !emLoop;
+    tocadorDanca.loop = emLoop;
+    localStorage.setItem("musLoop", emLoop ? "1" : "0");
+    pintarPalco();
+  });
+
+  // Sem loop, a faixa acaba e a tela precisa parar de dizer "tocando".
+  tocadorDanca.addEventListener("ended", pintarPalco);
+
+  pintarPalco();
+
+  function marcarTocando() {
+    for (const { cat, chave } of CAT_MUSICA) {
+      const caixa = caixaDe(cat);
+      if (caixa) caixa.classList.toggle("tocandoAgora", chave === dancaNoAr);
+    }
+  }
+
+  async function vigiarDanca() {
+    let d;
+    try {
+      d = (await (await fetch("/danca")).json()).danca;
+    } catch {
+      return; // relay fora do ar: o aviso do topo já cobre
+    }
+    if (!d || d === dancaNoAr) return;
+    dancaNoAr = d;
+    marcarTocando();
+
+    const lista = audios["musica_" + d] || [];
+    if (!lista.length) {
+      // Sem música cadastrada pra essa dança: para a anterior em vez de
+      // deixar a música errada tocando por cima da dança nova.
+      tocadorDanca.pause();
+      tocadorDanca.removeAttribute("src");
+      pintarPalco();
+      return;
+    }
+    // Sorteia entre as que existem: com duas ou três subidas, a mesma dança
+    // não soa idêntica toda vez que alguém a compra de novo.
+    const arq = lista[Math.floor(Math.random() * lista.length)];
+
+    /* A LIVE MANDA. Se alguém comprou uma dança enquanto o streamer conferia
+       uma música no "ouvir", a prévia sai de cena -- senão as duas tocam
+       juntas, e o que vai para a transmissão é a mistura das duas. */
+    pararPrevia();
+
+    tocadorDanca.src = "/audios/" + encodeURIComponent(arq);
+
+    /* O gatilho troca a FAIXA sempre, mas só TOCA se o streamer não tiver
+       pausado. É o que faz o automático continuar funcionando sem o botão de
+       pausa virar mentira: ao voltar, ele já está na música da dança que está
+       no ar agora. */
+    if (!musicaPausada) await tocar();
+    pintarPalco();
+  }
+  setInterval(vigiarDanca, 1500);
+
+  // ── qual modo está no ar ──
+  const seletorModo = $("[data-caminho='geral.modo']");
+  const faixaModo = $("#faixaModo");
+
+  function avisarModo() {
+    const outro = seletorModo.value !== "avaliador";
+    faixaModo.classList.toggle("outro", outro);
+    faixaModo.innerHTML = outro
+      ? "👥 No ar: <b>Multidão</b>. <span>Este é o painel do avaliador — mexer aqui não muda "
+        + 'a live agora.</span> <a href="/painel.html" target="_blank">abrir o painel da Multidão ↗</a>'
+      : "⭐ No ar: <b>Avaliador de skin</b> — este painel. "
+        + '<span>Deixe esta aba aberta: é ela que toca a música da dança.</span>';
+  }
+  seletorModo.addEventListener("change", avisarModo);
+
+  /* ══════════════════════════════════════════════════════════════════════
+     OS BOTÕES DE CÂMERA
+     ══════════════════════════════════════════════════════════════════════
+
+     Salvam na hora, sem esperar o botão Salvar: são controle de PALCO, não
+     configuração. Quem clica "mostrar o pódio" quer ver o pódio agora, e
+     ter que lembrar de salvar depois faria o botão parecer quebrado.
+
+     Passam pelo `coletar()` de sempre pra não pisar no resto da config nem
+     no que o outro painel edita. */
+  const CAMERAS = {
+    auto: "🎬 automática — segue quem chega",
+    podio: "🏛️ travada no pódio do mapa",
+    livre: "🕹️ livre — o Roblox manda (seu boneco aparece)",
+  };
+
+  function mostrarCamera() {
+    const v = (carregado.geral || {}).camera || "auto";
+    $("#camAgora").textContent = "agora: " + (CAMERAS[v] || v);
+    for (const b of document.querySelectorAll("[data-camera]")) {
+      b.style.borderColor = b.dataset.camera === v ? "var(--acento)" : "";
+      b.style.color = b.dataset.camera === v ? "var(--acento)" : "";
+    }
+  }
+
+  for (const b of document.querySelectorAll("[data-camera]")) {
+    b.addEventListener("click", async () => {
+      const cfg = coletar();
+      cfg.geral = cfg.geral || {};
+      cfg.geral.camera = b.dataset.camera;
+      avisar("mudando a câmera…");
+      try {
+        const r = await fetch("/config", {
+          method: "POST",
+          headers: { "x-token": TOKEN_ESCRITA, "content-type": "application/json" },
+          body: JSON.stringify(cfg),
+        });
+        if (!r.ok) throw new Error("HTTP " + r.status);
+        preencher((await r.json()).config);
+        avisar("câmera: " + CAMERAS[b.dataset.camera] + " — o jogo aplica em até 3s", "ok");
+      } catch (e) {
+        avisar("falhou: " + e.message, "erro");
+      }
+    });
+  }
+
+  /* ══════════════════════════════════════════════════════════════════════
+     TESTES RÁPIDOS
+     ══════════════════════════════════════════════════════════════════════ */
+  /* A IDENTIDADE da simulação: o nick vira um UserId de verdade.
+
+     Isto NÃO é enfeite. O jogo (Relay.luau) descarta todo evento com
+     `roblox_id <= 0` — sem uma conta que exista não há skin pra vestir o
+     boneco. Mandar a simulação sem resolver o nick antes gravava o evento,
+     o painel dizia "mandei ✓" e não acontecia nada na tela. */
+  const simNick = $("#simNick");
+  const lblIdent = $("#simIdentidade");
+  let identidade = null; // { nick, roblox_id }
+
+  async function resolverIdentidade() {
+    const nick = simNick.value.trim();
+    if (!nick) {
+      identidade = null;
+      lblIdent.textContent = "digite um nick do Roblox";
+      return null;
+    }
+    if (identidade && identidade.nick === nick) return identidade; // cache
+    lblIdent.textContent = `procurando "${nick}"…`;
+    try {
+      const r = await fetch("/resolver?nick=" + encodeURIComponent(nick),
+        { headers: { "x-token": TOKEN_ESCRITA } });
+      const d = await r.json();
+      identidade = { nick, roblox_id: Number(d.roblox_id) || 0 };
+    } catch {
+      identidade = { nick, roblox_id: 0 };
+    }
+    lblIdent.textContent = identidade.roblox_id > 0
+      ? `✅ ${esc(nick)} — skin real`
+      : `⚠️ "${esc(nick)}" não existe no Roblox — o jogo vai ignorar`;
+    return identidade;
+  }
+  simNick.addEventListener("change", resolverIdentidade);
+  simNick.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") resolverIdentidade();
+  });
+
+  const quantos = () => Math.max(1, Math.min(300, Math.floor(Number($("#simVezes").value) || 1)));
+
+  async function simular(corpo, rotulo) {
+    const quem = await resolverIdentidade();
+    if (!quem || quem.roblox_id <= 0) {
+      avisar("preencha um nick do Roblox que exista — sem ele o jogo descarta", "erro");
+      return;
+    }
+    avisar("simulando…");
+    try {
+      const r = await fetch("/simular", {
+        method: "POST",
+        headers: { "x-token": TOKEN_ESCRITA, "content-type": "application/json" },
+        body: JSON.stringify({
+          ...corpo,
+          nickname: quem.nick,
+          roblox_id: quem.roblox_id,
+          nick_roblox: quem.nick,
+        }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.erro || "HTTP " + r.status);
+      avisar(`🧪 ${rotulo} — precisa do jogo em Play pra aparecer`, "ok");
+    } catch (e) {
+      avisar("falhou: " + e.message, "erro");
+    }
+  }
+
+  for (const b of document.querySelectorAll("[data-simular]")) {
+    b.addEventListener("click", () => {
+      const n = quantos();
+      simular({
+        tipo: b.dataset.simular,
+        vezes: n,
+        distintos: $("#simDistintos").value === "1",
+      }, b.textContent.trim() + (n > 1 ? ` ×${n}` : ""));
+    });
+  }
+
+  /* ══════════════════════════════════════════════════════════════════════
+     BUSCA DO CATÁLOGO — uma função, três usos
+     ══════════════════════════════════════════════════════════════════════
+
+     Escolher o presente pra testar e escolher o presente novo de um gatilho
+     são a mesma interação: digitar, ver as opções com imagem e valor,
+     clicar. Duas cópias disso já seria uma pra ficar pra trás. */
+  function ligarBusca(idCaixa, idLista, aoEscolher) {
+    const caixa = $(idCaixa);
+    const lista = $(idLista);
+    caixa.addEventListener("input", () => {
+      const q = caixa.value.trim().toLowerCase();
+      if (!q) { lista.style.display = "none"; return; }
+      const achados = catalogo
+        .filter((p) => p.nome.includes(q) || (p.rotulo || "").toLowerCase().includes(q))
+        .slice(0, 30);
+      lista.innerHTML = achados.map((p) => `
+        <div class="item" data-nome="${esc(p.nome)}">
+          ${p.imagem ? `<img src="${esc(p.imagem)}" alt="">` : "<img alt=''>"}
+          <span>${esc(p.rotulo || p.nome)}</span>
+          <span class="m">🪙 ${p.moedas ?? "?"}</span></div>`).join("")
+        || '<div class="item">nada encontrado</div>';
+      lista.style.display = "block";
+    });
+    lista.addEventListener("click", (e) => {
+      const item = e.target.closest("[data-nome]");
+      if (!item) return;
+      lista.style.display = "none";
+      caixa.value = "";
+      aoEscolher(item.dataset.nome);
+    });
+  }
+
+  /* ══════════════════════════════════════════════════════════════════════
+     O PRESENTE FIXADO PRA TESTAR
+     ══════════════════════════════════════════════════════════════════════
+
+     Ele FICA. Antes, cada teste pedia digitar o nome do presente de novo —
+     inclusive pra repetir o mesmo — e isso tornava testar um castigo. Agora
+     escolhe uma vez e aperta ▶ quantas vezes quiser. */
+  let presenteFixado = null;
+
+  function fixarTeste(nome) {
+    presenteFixado = nome;
+    const i = infoDoCatalogo(nome);
+    const img = $("#fixadoImg");
+    if (i.imagem) { img.src = i.imagem; } else { img.removeAttribute("src"); }
+    $("#fixadoNome").textContent = i.rotulo || nome;
+    $("#fixadoMoedas").textContent = "🪙 " + (i.moedas ?? "?") + " moedas";
+    $("#fixadoPlay").disabled = false;
+  }
+
+  function testarFixado() {
+    if (!presenteFixado) return;
+    const i = infoDoCatalogo(presenteFixado);
+    const n = quantos();
+    /* `moedas` PRECISA ir junto: é o valor do presente que compra a faixa da
+       nota. Sem ele o relay assume 0 e um presente de 10.000 sairia com a
+       nota de quem só comentou — o modo inteiro pareceria quebrado. */
+    simular({ tipo: "presente", presente: presenteFixado, moedas: i.moedas ?? 0, vezes: n },
+      `presente "${i.rotulo}" (${i.moedas ?? "?"} moedas)${n > 1 ? ` ×${n}` : ""}`);
+  }
+
+  $("#fixadoPlay").disabled = true;
+  $("#fixadoPlay").addEventListener("click", testarFixado);
+
+  ligarBusca("#buscarSim", "#resultadosSim", (nome) => {
+    fixarTeste(nome);
+    testarFixado(); // escolher já testa: ninguém escolhe pra não testar
+  });
+  ligarBusca("#buscarTroca", "#resultadosTroca", trocarPresente);
+
+  document.addEventListener("click", (e) => {
+    if (!e.target.closest(".busca")) {
+      $("#resultadosSim").style.display = "none";
+      $("#resultadosTroca").style.display = "none";
+    }
+  });
+
+  carregarCatalogo().then(carregar);
+</script>
+</body>
+</html>

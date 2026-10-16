@@ -1,0 +1,1031 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: file:; media-src 'self' file:; frame-src http://127.0.0.1:8790;">
+<title>RatGames</title>
+<link rel="stylesheet" href="estilo.css">
+</head>
+<body>
+
+<svg class="sprite-icones" aria-hidden="true" focusable="false">
+  <defs>
+    <symbol id="i-biblioteca" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="7" height="7" rx="1.8"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.8"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.8"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.8"/></symbol>
+    <symbol id="i-loja" viewBox="0 0 24 24"><path d="M5.2 8.5h13.6l-1.1 10.6a2 2 0 0 1-2 1.9H8.3a2 2 0 0 1-2-1.9L5.2 8.5Z"/><path d="M9 8.5V7a3 3 0 0 1 6 0v1.5"/></symbol>
+    <symbol id="i-studio" viewBox="0 0 24 24"><circle cx="12" cy="12" r="2.2"/><path d="M8.3 8.3a5.2 5.2 0 0 0 0 7.4M15.7 8.3a5.2 5.2 0 0 1 0 7.4M5.5 5.5a9.2 9.2 0 0 0 0 13M18.5 5.5a9.2 9.2 0 0 1 0 13"/></symbol>
+    <symbol id="i-overlays" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="12" rx="2"/><path d="M7 9h5M7 12.5h8"/><path d="M9 20.5h6"/></symbol>
+    <symbol id="i-aovivo" viewBox="0 0 24 24"><circle cx="12" cy="12" r="2.4"/><path d="M7.8 7.8a6 6 0 0 0 0 8.4M16.2 7.8a6 6 0 0 1 0 8.4"/><path d="M5 5a10 10 0 0 0 0 14M19 5a10 10 0 0 1 0 14"/></symbol>
+    <symbol id="i-indicacao" viewBox="0 0 24 24"><path d="M4 8.5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v1.6a2 2 0 0 0 0 3.8v1.6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-1.6a2 2 0 0 0 0-3.8V8.5Z"/><path d="M14.5 6.5v11" stroke-dasharray="1.6 1.8"/><path d="M8 10h3M8 14h3"/></symbol>
+    <symbol id="i-analytics" viewBox="0 0 24 24"><path d="M4 20h16"/><path d="M7 16.5v-4M12 16.5V7.5M17 16.5v-7"/></symbol>
+    <symbol id="i-suporte" viewBox="0 0 24 24"><path d="M20 11.6c0 4.2-3.6 7.6-8 7.6-1.2 0-2.3-.2-3.3-.6L4.5 20l1.2-3.6A7.3 7.3 0 0 1 4 11.6C4 7.4 7.6 4 12 4s8 3.4 8 7.6Z"/></symbol>
+    <symbol id="i-config" viewBox="0 0 24 24"><path d="M4 7.5h9M17 7.5h3M4 16.5h3M11 16.5h9"/><circle cx="15" cy="7.5" r="2"/><circle cx="9" cy="16.5" r="2"/></symbol>
+    <symbol id="i-externo" viewBox="0 0 24 24"><path d="M8 16 16 8M9.5 8H16v6.5"/></symbol>
+    <symbol id="i-sino" viewBox="0 0 24 24"><path d="M6.5 16.5V11a5.5 5.5 0 0 1 11 0v5.5l1.5 2h-14l1.5-2Z"/><path d="M10 20.5a2 2 0 0 0 4 0"/></symbol>
+    <symbol id="i-coroa" viewBox="0 0 24 24"><path d="M4 8.5 8.2 12 12 5.5l3.8 6.5L20 8.5 18.4 18H5.6L4 8.5Z"/></symbol>
+    <symbol id="i-presente" viewBox="0 0 24 24"><rect x="4" y="9.5" width="16" height="10.5" rx="1.6"/><path d="M4 13.5h16M12 9.5V20"/><path d="M12 9.5S11 5 8.6 5a2.25 2.25 0 0 0 0 4.5H12ZM12 9.5S13 5 15.4 5a2.25 2.25 0 0 1 0 4.5H12Z"/></symbol>
+    <symbol id="i-controle" viewBox="0 0 24 24"><path d="M7.6 8h8.8a4.4 4.4 0 0 1 4.3 5.3l-.7 3.5a2.3 2.3 0 0 1-4 1L14.5 16h-5L8 17.8a2.3 2.3 0 0 1-4-1l-.7-3.5A4.4 4.4 0 0 1 7.6 8Z"/><path d="M8.2 10.8v3M6.7 12.3h3"/><path d="M15.4 11.4h.01M17.2 13.2h.01"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12.5 4.2 4.2L19 7"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M6.5 6.5 17.5 17.5M17.5 6.5 6.5 17.5"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24"><path class="cheio" d="M8.5 5.8v12.4a.8.8 0 0 0 1.2.7l9.6-6.2a.8.8 0 0 0 0-1.4L9.7 5.1a.8.8 0 0 0-1.2.7Z"/></symbol>
+    <symbol id="i-pasta" viewBox="0 0 24 24"><path d="M3.5 7.5a2 2 0 0 1 2-2h3.7l2.1 2.2h7.2a2 2 0 0 1 2 2V17a2 2 0 0 1-2 2H5.5a2 2 0 0 1-2-2V7.5Z"/></symbol>
+    <symbol id="i-seta" viewBox="0 0 24 24"><path d="m9.5 6 6 6-6 6"/></symbol>
+    <symbol id="i-voltar" viewBox="0 0 24 24"><path d="m14.5 6-6 6 6 6"/></symbol>
+    <symbol id="i-chave" viewBox="0 0 24 24"><circle cx="8" cy="15" r="4.3"/><path d="M11.1 11.9 19.5 3.5M15.8 7.2l2.6 2.6M13.6 9.4l2 2"/></symbol>
+    <symbol id="i-cadeado" viewBox="0 0 24 24"><rect x="5" y="10.5" width="14" height="9.5" rx="2"/><path d="M8.2 10.5V8a3.8 3.8 0 0 1 7.6 0v2.5"/></symbol>
+    <symbol id="i-raio" viewBox="0 0 24 24"><path d="M13.2 3.5 6 13.2h5.3l-1 7.3 7.7-10h-5.4l.6-7Z"/></symbol>
+    <symbol id="i-windows" viewBox="0 0 24 24"><path d="M4 5.6 11 4.6v6.9H4ZM13 4.3l7-1v8.2h-7ZM4 12.5h7v6.9l-7-1ZM13 12.5h7v8.2l-7-1Z"/></symbol>
+    <symbol id="i-busca" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.3"/><path d="m20 20-4.4-4.4"/></symbol>
+    <symbol id="i-atualizar" viewBox="0 0 24 24"><path d="M20 11a8 8 0 0 0-14.3-4.9L4 8"/><path d="M4 3v5h5"/><path d="M4 13a8 8 0 0 0 14.3 4.9L20 16"/><path d="M20 21v-5h-5"/></symbol>
+    <symbol id="i-pix" viewBox="0 0 24 24"><path d="M12 3.5 20.5 12 12 20.5 3.5 12Z"/><path d="m8.5 12 3.5-3.5 3.5 3.5-3.5 3.5Z"/></symbol>
+    <symbol id="i-assinatura" viewBox="0 0 24 24"><rect x="2.5" y="5.5" width="19" height="13" rx="2.5"/><path d="M2.5 10h19M6.5 15h4"/></symbol>
+    <symbol id="i-globo" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></symbol>
+    <symbol id="i-discord" viewBox="0 0 24 24"><path d="M8.3 6.2a13 13 0 0 1 7.4 0l.5-.9a.5.5 0 0 1 .6-.2c1.3.4 2.4 1 3.4 1.7.2.2.3.4.3.6.6 3.6.2 7-1.3 10.2-.1.2-.3.3-.5.4-1 .5-2 .8-3 1.1-.2 0-.4 0-.5-.2l-.8-1.3M8.3 6.2l-.5-.9a.5.5 0 0 0-.6-.2c-1.3.4-2.4 1-3.4 1.7-.2.2-.3.4-.3.6-.6 3.6-.2 7 1.3 10.2.1.2.3.3.5.4 1 .5 2 .8 3 1.1.2 0 .4 0 .5-.2l.8-1.3M7 16.5c3.3 1.5 6.7 1.5 10 0"/><path d="M9.3 12h.01M14.7 12h.01"/></symbol>
+  </defs>
+</svg>
+
+<div class="arrastar"></div>
+
+<div id="barraAtualizacao" class="barra-atualizacao" hidden>
+  <span id="barraAtualizacaoTexto">Saiu uma versão nova do RatGames.</span>
+  <button id="btAtualizarAgora" class="botao-secundario">Atualizar</button>
+  <button id="btAdiarAtualizacao" class="botao-texto pequeno" title="Some até a próxima abertura">agora não</button>
+</div>
+
+<section id="telaLogin" class="tela ativa">
+  <div class="cartao-login">
+    <div class="marca">
+      <img class="logo" src="marca/logo.svg" alt="">
+      <h1>RAT<span class="games-ciano">GAMES</span></h1>
+      <p class="sub">Os jogos que a sua live joga com você</p>
+    </div>
+
+    <form id="formLogin" autocomplete="on">
+      <label>
+        E-mail
+        <input type="email" id="email" required autocomplete="username"
+               placeholder="voce@exemplo.com">
+      </label>
+      <label>
+        Senha
+        <input type="password" id="senha" required autocomplete="current-password"
+               placeholder="sua senha">
+      </label>
+
+      <div id="blocoCadastro" hidden>
+        <label>
+          <span id="rotuloNome">Nome de usuário</span>
+          <input type="text" id="nome" maxlength="40" autocomplete="nickname"
+                 placeholder="como você quer ser chamado">
+        </label>
+        <label>
+          <span id="rotuloTiktok">Seu @ do TikTok</span>
+          <input type="text" id="cadTiktok" maxlength="45" autocomplete="off"
+                 spellcheck="false" placeholder="@seuperfil">
+        </label>
+        <label>
+          <span id="rotuloPais">País</span>
+          <select id="pais">
+            <option value="" selected disabled>— escolha —</option>
+            <option value="BR">Brasil</option>
+            <option value="PT">Portugal</option>
+            <option value="US">Estados Unidos</option>
+            <option value="GB">Reino Unido</option>
+            <option value="ES">Espanha</option>
+            <option value="MX">México</option>
+            <option value="AR">Argentina</option>
+            <option value="CO">Colômbia</option>
+            <option value="CL">Chile</option>
+            <option value="PE">Peru</option>
+            <option value="CA">Canadá</option>
+            <option value="AU">Austrália</option>
+            <option value="DE">Alemanha</option>
+            <option value="FR">França</option>
+            <option value="IT">Itália</option>
+            <option value="OUTRO">Outro país</option>
+          </select>
+        </label>
+        <label>
+          <span id="rotuloIdioma">Idioma</span>
+          <select id="idioma">
+            <option value="en" selected>English</option>
+            <option value="pt">Português</option>
+            <option value="es">Español</option>
+          </select>
+        </label>
+
+        <p id="dicaMoeda" class="dica-moeda"></p>
+
+        <label class="aceite">
+          <input type="checkbox" id="aceitoTermos">
+          <span id="textoAceite">
+            Li e aceito os <a href="#" id="linkTermos">Termos de Uso</a>.
+          </span>
+        </label>
+        <ul id="resumoTermos" class="resumo-termos"></ul>
+      </div>
+
+      <label class="aceite lembrar">
+        <input type="checkbox" id="lembrarConta" checked>
+        <span>Continuar conectado neste computador</span>
+      </label>
+
+      <p id="avisoLogin" class="aviso" hidden></p>
+
+      <button type="submit" id="btnEntrar" class="botao-principal">ENTRAR</button>
+      <button type="button" id="btnCriar" class="botao-texto">
+        Não tenho conta ainda
+      </button>
+      <button type="button" id="btnEsqueci" class="botao-texto">
+        Esqueci minha senha
+      </button>
+    </form>
+
+    <div id="blocoGoogle" hidden>
+      <div class="ou"><span>ou</span></div>
+      <button type="button" id="btnGoogle" class="botao-google">
+        <svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true">
+          <path fill="#4285F4" d="M23.5 12.3c0-.8-.1-1.6-.2-2.3H12v4.5h6.5a5.6 5.6 0 0 1-2.4 3.7v3h3.9c2.3-2.1 3.5-5.2 3.5-8.9z"/>
+          <path fill="#34A853" d="M12 24c3.2 0 6-1.1 8-2.9l-3.9-3c-1.1.7-2.5 1.2-4.1 1.2-3.1 0-5.8-2.1-6.7-5H1.3v3.1A12 12 0 0 0 12 24z"/>
+          <path fill="#FBBC05" d="M5.3 14.3a7.2 7.2 0 0 1 0-4.6V6.6H1.3a12 12 0 0 0 0 10.8l4-3.1z"/>
+          <path fill="#EA4335" d="M12 4.8c1.8 0 3.3.6 4.6 1.8l3.4-3.4A12 12 0 0 0 1.3 6.6l4 3.1c.9-2.9 3.6-4.9 6.7-4.9z"/>
+        </svg>
+        Entrar com o Google
+      </button>
+    </div>
+
+    <p class="rodape-login">
+      Uma conta funciona em <strong>um computador por vez</strong>.
+    </p>
+  </div>
+</section>
+
+<section id="telaPrimeiroAcesso" class="tela">
+  <div class="cartao-login largo">
+    <div class="marca">
+      <img class="logo" src="marca/logo.svg" alt="">
+      <h1 id="paTitulo">Falta pouco</h1>
+      <p class="sub" id="paSub">Três coisas rápidas e você já entra.</p>
+    </div>
+
+    <form id="formPrimeiroAcesso" autocomplete="on">
+      <label>
+        <span id="paRotuloNome">Como quer ser chamado?</span>
+        <input type="text" id="paNome" maxlength="40" autocomplete="nickname"
+               placeholder="seu nome de usuário">
+      </label>
+      <label>
+        <span id="paRotuloPais">Seu país</span>
+        <select id="paPais">
+          <option value="" selected disabled>— select —</option>
+          <option value="BR">Brasil</option>
+          <option value="PT">Portugal</option>
+          <option value="US">Estados Unidos</option>
+          <option value="GB">Reino Unido</option>
+          <option value="ES">Espanha</option>
+          <option value="MX">México</option>
+          <option value="AR">Argentina</option>
+          <option value="CO">Colômbia</option>
+          <option value="CL">Chile</option>
+          <option value="PE">Peru</option>
+          <option value="CA">Canadá</option>
+          <option value="AU">Austrália</option>
+          <option value="DE">Alemanha</option>
+          <option value="FR">França</option>
+          <option value="IT">Itália</option>
+          <option value="OUTRO">Outro país</option>
+        </select>
+      </label>
+      <label>
+        <span id="paRotuloIdioma">Idioma</span>
+        <select id="paIdioma">
+          <option value="en" selected>English</option>
+          <option value="pt">Português</option>
+          <option value="es">Español</option>
+        </select>
+      </label>
+
+      <p id="paDicaMoeda" class="dica-moeda"></p>
+
+      <label class="aceite">
+        <input type="checkbox" id="paAceito">
+        <span id="paTextoAceite">
+          Li e aceito os <a href="#" id="paLinkTermos">Termos de Uso</a>.
+        </span>
+      </label>
+      <ul id="paResumo" class="resumo-termos"></ul>
+
+      <p id="paAviso" class="aviso" hidden></p>
+
+      <button type="submit" id="paBtnOk" class="botao-principal">COMEÇAR</button>
+      <button type="button" id="paBtnSair" class="botao-texto">
+        Agora não — sair da conta
+      </button>
+    </form>
+  </div>
+</section>
+
+<section id="telaVerificarEmail" class="tela">
+  <div class="cartao-login">
+    <div class="marca">
+      <img class="logo" src="marca/logo.svg" alt="">
+      <h1>Confirme seu e-mail</h1>
+      <p class="sub">
+        Enviamos um código de 6 dígitos para
+        <span id="verificarEmailAlvo"></span>. Digite ele abaixo para confirmar.
+      </p>
+    </div>
+
+    <form id="formVerificarEmail" autocomplete="off">
+      <label>
+        Código
+        <input type="text" id="verificarCodigo" inputmode="numeric" maxlength="6"
+               autocomplete="one-time-code" placeholder="000000">
+      </label>
+
+      <p id="avisoVerificar" class="aviso" hidden></p>
+
+      <button type="submit" id="btnVerificar" class="botao-principal">CONFIRMAR</button>
+      <button type="button" id="btnReenviarCodigo" class="botao-texto">
+        Reenviar código
+      </button>
+    </form>
+
+    <div class="ou"><span>ou</span></div>
+
+    <section class="trocar-email">
+      <p class="trocar-email-texto">Não recebeu? Confira se o endereço está certo.</p>
+      <label>
+        Trocar e-mail
+        <input type="email" id="trocarEmailInput" autocomplete="email"
+               placeholder="voce@exemplo.com">
+      </label>
+      <button type="button" id="btnTrocarEmail" class="botao-secundario">
+        Trocar e enviar código
+      </button>
+    </section>
+  </div>
+</section>
+
+<section id="telaBiblioteca" class="tela">
+  <aside class="barra">
+    <div class="marca-pequena" aria-label="RatGames">
+      <img class="logo-mini" src="marca/logo.svg" alt="">
+      <span class="marca-resto" aria-hidden="true">AT<span class="games-ciano">GAMES</span></span>
+    </div>
+
+    <nav>
+      <div class="nav-cat">Catálogo</div>
+      <button class="item" data-secao="loja">
+        <svg class="ic" aria-hidden="true"><use href="#i-loja"/></svg> Descobrir
+      </button>
+      <button class="item ativo" data-secao="biblioteca">
+        <svg class="ic" aria-hidden="true"><use href="#i-biblioteca"/></svg> Minha biblioteca
+      </button>
+
+      <div class="nav-cat">Transmissão</div>
+      <button class="item" data-secao="overlays">
+        <svg class="ic" aria-hidden="true"><use href="#i-overlays"/></svg> Overlays
+      </button>
+      <button class="item" data-secao="aovivo">
+        <svg class="ic" aria-hidden="true"><use href="#i-aovivo"/></svg> Ao vivo
+      </button>
+      <button class="item" data-secao="analytics">
+        <svg class="ic" aria-hidden="true"><use href="#i-analytics"/></svg> Analytics
+      </button>
+
+      <div class="nav-cat">Conta</div>
+      <button id="itemAssinatura" class="item" type="button">
+        <svg class="ic" aria-hidden="true"><use href="#i-assinatura"/></svg> Assinatura
+      </button>
+      <button class="item" data-secao="indicacao" id="itemIndicacao" hidden>
+        <svg class="ic" aria-hidden="true"><use href="#i-indicacao"/></svg> Indicação
+      </button>
+      <button id="btnConfig" class="item">
+        <svg class="ic" aria-hidden="true"><use href="#i-config"/></svg> Configurações
+      </button>
+    </nav>
+
+    <div class="rodape-barra">
+      <div class="ferramentas">
+        <button id="btnSuporte" class="item fraco">
+          <svg class="ic" aria-hidden="true"><use href="#i-suporte"/></svg> Ajuda
+        </button>
+        <button id="itemComunidade" class="item fraco item-discord" type="button" hidden>
+          <svg class="ic" aria-hidden="true"><use href="#i-discord"/></svg> Comunidade no Discord
+        </button>
+      </div>
+
+      <div class="cartao-arroba" id="cartaoArroba">
+        <span class="arroba-rot">Sua live</span>
+        <span class="arroba-foto" id="arrobaFoto" aria-hidden="true"></span>
+        <span class="arroba-quem">
+          <span class="arroba-nome" id="arrobaNome" hidden></span>
+          <span class="arroba-valor" id="arrobaAtual">—</span>
+        </span>
+        <button id="btnTrocarArroba" class="arroba-trocar" type="button">Trocar @</button>
+      </div>
+
+      <button id="cartaoPlano" class="cartao-plano">
+        <span id="planoNome" class="plano-nome">Carregando…</span>
+        <span id="planoDetalhe" class="plano-detalhe"></span>
+      </button>
+      <div class="usuario">
+        <span id="emailUsuario" class="email"></span>
+        <button id="btnSair" class="botao-texto pequeno">Sair</button>
+      </div>
+    </div>
+  </aside>
+
+  <main class="conteudo">
+    <header class="topo">
+      <h2 id="tituloSecao">Minha biblioteca</h2>
+
+      <div class="busca" id="busca">
+        <svg class="ico" aria-hidden="true"><use href="#i-busca"/></svg>
+        <input id="buscaJogos" type="text" placeholder="Pesquisar jogos" autocomplete="off" spellcheck="false" aria-label="Pesquisar jogos">
+        <div id="buscaResultados" class="busca-resultados" role="listbox" hidden></div>
+      </div>
+      <span id="estadoSessao" class="estado-sessao"></span>
+
+      <button type="button" id="btnAtualizarTopo" class="atualizar-topo" hidden>
+        <svg class="ic" aria-hidden="true"><use href="#i-atualizar"/></svg>
+        <span id="atualizarTopoTxt">ATUALIZAR</span>
+      </button>
+      <div class="idioma-topo">
+        <button type="button" id="btnIdiomaTopo" class="idioma-botao" aria-haspopup="true" title="Idioma">
+          <svg class="ic" aria-hidden="true"><use href="#i-globo"/></svg>
+          <span id="idiomaTopoTxt">PT</span>
+          <svg class="seta-idioma" viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5"/></svg>
+        </button>
+        <div id="menuIdiomaTopo" class="idioma-menu" hidden>
+          <button type="button" data-idioma="pt">Português</button>
+          <button type="button" data-idioma="en">English</button>
+          <button type="button" data-idioma="es">Español</button>
+        </div>
+      </div>
+      <button type="button" id="btnSino" class="sino" aria-label="Recados do suporte">
+        <svg class="ico-sino" aria-hidden="true"><use href="#i-sino"/></svg>
+        <span id="sinoContador" class="sino-contador" hidden>0</span>
+      </button>
+      <div id="painelNotif" class="notif-painel" hidden>
+        <div class="notif-cab">
+          <span class="notif-titulo">Notificações</span>
+          <button type="button" id="notifLidas" class="notif-link">Marcar lidas</button>
+          <button type="button" id="notifLimpar" class="notif-link">Limpar</button>
+        </div>
+        <div id="notifLista" class="notif-lista"></div>
+        <p id="notifVazio" class="notif-vazio" hidden>Nenhuma notificação por aqui.</p>
+      </div>
+    </header>
+
+    <div id="caixaRecados" class="cortina" hidden>
+      <div class="caixa">
+        <h2>Recado do suporte</h2>
+        <div id="listaRecados" class="recados-lista"></div>
+        <p id="recadosVazio" class="vazio" hidden>
+          Nenhum recado por aqui. Quando o suporte responder você, a mensagem aparece nesta janela.
+        </p>
+        <div id="respostaCliente" hidden>
+          <textarea id="recadoResposta" rows="3" maxlength="1000"
+                    placeholder="Responder ao suporte…"></textarea>
+          <p id="recadoAviso" class="aviso" hidden></p>
+        </div>
+        <div class="caixa-botoes">
+          <button type="button" id="recadosFechar" class="botao-texto">FECHAR</button>
+          <button type="button" id="recadoEnviar" class="botao-principal" hidden>RESPONDER</button>
+        </div>
+      </div>
+    </div>
+
+    <section id="faixaGratis" class="faixa-gratis" hidden>
+      <div id="faixaGratisArte" class="faixa-gratis-arte" aria-hidden="true"></div>
+      <div class="faixa-gratis-texto">
+        <span class="selo-gratis"><svg class="ico" aria-hidden="true"><use href="#i-presente"/></svg>GRÁTIS PRA VOCÊ</span>
+        <strong id="faixaGratisNome"></strong>
+        <p id="faixaGratisTexto">Jogue 5 horas e ganhe 1 dia do Plano Completo</p>
+        <small id="faixaGratisProgresso"></small>
+      </div>
+      <button type="button" id="faixaGratisBotao" class="botao-principal">JOGAR GRÁTIS</button>
+    </section>
+
+    <section id="destaque" class="destaque" hidden>
+      <div id="destaquePalco" class="destaque-palco">
+        <video id="destaqueVideo" class="destaque-video" muted loop playsinline preload="auto" hidden></video>
+        <div class="destaque-veu" aria-hidden="true"></div>
+        <div class="destaque-texto">
+          <span id="destaqueEtiqueta" class="etiqueta"></span>
+          <h3 id="destaqueNome"></h3>
+          <p id="destaquePitch"></p>
+          <button id="destaqueBotao" class="botao-principal estreito">VER</button>
+        </div>
+        <div id="destaquePontos" class="destaque-pontos"></div>
+      </div>
+      <div id="destaqueMiniaturas" class="destaque-miniaturas"></div>
+    </section>
+
+    <section id="rentaveis" class="rentaveis" hidden>
+      <div class="secao-cabeca">
+        <div>
+          <h3 class="secao-titulo">Mais rentáveis <span class="secao-marca">TOP 5</span></h3>
+          <p class="secao-sub">Os que mais rendem em presentes ao vivo</p>
+        </div>
+      </div>
+      <div id="rentaveisLista" class="top5"></div>
+    </section>
+
+    <section id="lojaCatalogo" class="loja-catalogo" hidden>
+      <div class="secao-cabeca">
+        <h3 class="secao-titulo">Todos os jogos</h3>
+        <div id="lojaAbas" class="loja-abas" role="tablist" aria-label="Categorias"></div>
+      </div>
+      <div class="loja-corpo">
+        <div id="listaJogos" class="loja-lista" role="list"></div>
+        <aside id="lojaPrevia" class="loja-previa" aria-live="polite"></aside>
+      </div>
+    </section>
+
+    <div id="bibliotecaBarra" class="biblioteca-barra" hidden>
+      <div id="bibliotecaAbas" class="loja-abas" role="tablist" aria-label="Filtrar a biblioteca"></div>
+      <div id="bibliotecaOrdem" class="biblioteca-ordem" role="tablist" aria-label="Ordenar">
+        <button type="button" data-ordem="recentes">Recentes</button>
+        <button type="button" data-ordem="horas">Mais jogados</button>
+        <button type="button" data-ordem="nome">A–Z</button>
+      </div>
+    </div>
+    <div id="listaBiblioteca" class="biblioteca" hidden></div>
+
+    <div id="bibliotecaVazia" class="vazio-caixa" hidden>
+      <p class="vazio-titulo">Você ainda não tem nenhum jogo</p>
+      <p class="vazio-texto">
+        Os jogos que você assinar ou comprar aparecem aqui, prontos para abrir.
+      </p>
+      <button type="button" id="btnVazioAssinar" class="botao-principal">
+        VER OS PLANOS
+      </button>
+    </div>
+
+    <section id="painelOverlays" class="overlays" hidden>
+      <p id="overlaysAviso" class="aviso" hidden></p>
+      <div id="overlaysCorpo"></div>
+    </section>
+
+    <section id="painelAoVivo" class="aovivo" hidden>
+      <div id="aoVivoCorpo"></div>
+    </section>
+
+    <section id="painelIndicacao" class="indicacao" hidden>
+      <p id="indicacaoAviso" class="aviso" hidden></p>
+      <div id="indicacaoCorpo"></div>
+    </section>
+
+    <section id="painelAnalytics" class="analytics" hidden>
+      <div class="periodos" id="periodos">
+        <button type="button" class="periodo ativo" data-periodo="hoje">Hoje</button>
+        <button type="button" class="periodo" data-periodo="ontem">Ontem</button>
+        <button type="button" class="periodo" data-periodo="7d">7 dias</button>
+        <button type="button" class="periodo" data-periodo="30d">30 dias</button>
+        <button type="button" class="periodo" data-periodo="tudo">Tudo</button>
+        <span class="periodo-personalizado">
+          <input type="date" id="periodoDe" aria-label="De" />
+          <span>até</span>
+          <input type="date" id="periodoAte" aria-label="Até" />
+          <button type="button" id="btnPeriodoAplicar" class="botao-texto pequeno">Aplicar</button>
+        </span>
+      </div>
+
+      <div id="analyticsVazio" class="vazio-caixa" hidden>
+        <p class="vazio-titulo" id="analyticsVazioTitulo">Nenhuma live neste período</p>
+        <p class="vazio-texto" id="analyticsVazioTexto">
+          Abra um jogo com a sua live conectada e o RatGames começa a registrar sozinho.
+        </p>
+      </div>
+
+      <div id="analyticsCorpo" hidden>
+        <div class="cartoes" id="analyticsCartoes"></div>
+
+        <h3 class="analytics-titulo">Por jogo</h3>
+        <p class="analytics-sub">Qual deles rendeu mais — por hora de live, e no total</p>
+        <div class="tabela-rolagem">
+          <table class="tabela" id="tabelaJogos"></table>
+        </div>
+
+        <h3 class="analytics-titulo">Presentes que mais renderam</h3>
+        <div class="tabela-rolagem">
+          <table class="tabela" id="tabelaPresentes"></table>
+        </div>
+
+        <h3 class="analytics-titulo">Possíveis restrições</h3>
+        <p class="analytics-sub" id="restricaoAviso">
+          O RatGames não lê o aviso oficial do TikTok — ele reconhece o padrão nos números.
+          Confira sempre com o que você viu na live.
+        </p>
+        <div id="listaRestricoes" class="restricoes"></div>
+      </div>
+    </section>
+
+    <p id="vazio" class="vazio" hidden>
+      Nenhum jogo por aqui ainda.
+    </p>
+  </main>
+</section>
+
+<section id="telaPlano" class="tela">
+  <button id="btnVoltarPlano" class="botao-voltar"><svg class="ico" aria-hidden="true"><use href="#i-voltar"/></svg>Voltar</button>
+  <button type="button" id="btnTenhoChave" class="atalho-chave">
+    <span class="atalho-chave-icone"><svg class="ico" aria-hidden="true"><use href="#i-chave"/></svg></span>
+    <span class="atalho-chave-texto">
+      <small>Comprou no Discord?</small>
+      <b>Ativar chave</b>
+    </span>
+  </button>
+
+  <div class="plano-topo">
+    <h2 id="planoTopoTitulo">Escolha o seu plano</h2>
+    <p id="planoTopoTexto">Todos os jogos do launcher, o painel de personalização e cada jogo novo
+       que entrar — sem taxa por jogo.</p>
+  </div>
+
+  <p id="planoAviso" class="aviso" hidden></p>
+  <div id="planoGrade" class="plano-grade"></div>
+
+  <section id="areaCancelar" class="cancelar-area" hidden>
+    <p class="cancelar-texto">
+      A sua assinatura renova sozinha. Você pode desligar a renovação quando quiser.
+    </p>
+    <p class="cancelar-texto forte">
+      O acesso continua até o fim do período já pago.
+    </p>
+    <button type="button" id="btnCancelarPlano" class="botao-texto">
+      Cancelar a renovação
+    </button>
+  </section>
+
+  <div id="caixaCancelar" class="cortina" hidden>
+    <div class="caixa">
+      <h2>Desligar a renovação?</h2>
+      <p class="caixa-texto" id="cancelarDetalhe">
+        Você continua com acesso até o fim do período já pago. Depois disso, os
+        jogos deixam de abrir e nenhuma nova cobrança é feita.
+      </p>
+      <div id="ofertaFica" class="oferta-fica" hidden>
+        <strong class="oferta-pct" id="ofertaPct"></strong>
+        <p class="caixa-texto" id="ofertaTexto"></p>
+        <button type="button" id="ofertaAceitar" class="botao-principal">QUERO O DESCONTO</button>
+      </div>
+      <p id="cancelarAviso" class="aviso" hidden></p>
+      <div class="caixa-botoes">
+        <button type="button" id="cancelarVoltar" class="botao-texto">Continuar assinante</button>
+        <button type="button" id="cancelarConfirmar" class="botao-principal">
+          SIM, DESLIGAR A RENOVAÇÃO
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <p class="plano-rodape" id="planoRodape">
+    O pagamento abre no seu navegador, com a segurança da Stripe.
+    Cancele quando quiser.
+  </p>
+
+  <div id="caixaChave" class="cortina" hidden>
+    <div class="caixa caixa-chave" role="dialog" aria-labelledby="chaveTitulo">
+      <span class="caixa-chave-icone"><svg class="ico" aria-hidden="true"><use href="#i-chave"/></svg></span>
+      <div class="caixa-chave-texto">
+        <h3 id="chaveTitulo">Já comprou um jogo no Discord?</h3>
+        <p>Cole a chave que veio na entrega do Discord.</p>
+        <p class="reforco-chave">Ela libera só aquele jogo — para sempre, e sem assinatura.</p>
+      </div>
+      <div class="caixa-chave-campo">
+        <input type="text" id="planoChave" maxlength="40" autocomplete="off"
+               spellcheck="false" placeholder="AVA-XXXXX-XXXXX-XXXXX-XXXX"
+               aria-label="Chave do jogo comprado">
+        <button type="button" id="planoResgatar" class="botao-principal">LIBERAR</button>
+      </div>
+      <p id="planoChaveAviso" class="aviso" hidden></p>
+      <button type="button" id="chaveFechar" class="botao-texto">Agora não</button>
+    </div>
+  </div>
+</section>
+
+<section id="telaConfig" class="tela">
+  <div class="config-corpo">
+    <button id="btnVoltarConfig" class="botao-voltar"><svg class="ico" aria-hidden="true"><use href="#i-voltar"/></svg>Voltar</button>
+    <h2 class="titulo-config">Configurações</h2>
+
+    <section class="bloco-config">
+      <h3>Conta</h3>
+      <div class="linha-config">
+        <div>
+          <strong id="cfgEmail">—</strong>
+          <p class="explica-config" id="cfgConta">—</p>
+        </div>
+        <button type="button" id="cfgSair" class="botao-secundario">Sair da conta</button>
+      </div>
+      <div class="linha-config">
+        <div>
+          <strong>Plano</strong>
+          <p class="explica-config" id="cfgPlano">—</p>
+        </div>
+        <button type="button" id="cfgPlanos" class="botao-secundario">Ver planos</button>
+      </div>
+    </section>
+
+    <section class="bloco-config" id="blocoChave">
+      <h3>Chave de jogo comprado</h3>
+      <p class="explica-config explica-chave">
+        Comprou um jogo avulso no Discord? Cole aqui a chave que veio na
+        entrega e ele fica liberado nesta conta — sem assinatura.
+        <strong>Cada chave vale para uma conta só.</strong>
+      </p>
+      <div class="linha-chave">
+        <input type="text" id="cfgChave" maxlength="40" autocomplete="off"
+               spellcheck="false" placeholder="AVA-XXXXX-XXXXX-XXXXX-XXXX">
+        <button type="button" id="cfgResgatar" class="botao-secundario">Liberar</button>
+      </div>
+      <p id="cfgChaveAviso" class="aviso" hidden></p>
+      <ul id="cfgChaves" class="lista-chaves"></ul>
+    </section>
+
+    <section class="bloco-config">
+      <h3>Idioma</h3>
+      <div class="linha-config">
+        <div>
+          <strong>Idioma dos jogos</strong>
+          <p class="explica-config">
+            Os jogos abrem em inglês, e só saem em português para quem escolheu
+            o Brasil ao criar a conta. É a tela que a sua audiência vê.
+          </p>
+        </div>
+        <select id="cfgIdiomaJogos">
+          <option value="">Automático</option>
+          <option value="pt">Português</option>
+          <option value="en">English</option>
+        </select>
+      </div>
+      <div class="linha-config">
+        <div>
+          <strong>Idioma do launcher</strong>
+          <p class="explica-config">Esta janela aqui — só você vê.</p>
+        </div>
+        <select id="cfgIdiomaLauncher">
+          <option value="">Automático</option>
+          <option value="pt">Português</option>
+          <option value="en">English</option>
+          <option value="es">Español</option>
+        </select>
+      </div>
+    </section>
+
+    <section class="bloco-config">
+      <h3>Ao iniciar e ao fechar</h3>
+      <label class="chave-config">
+        <input type="checkbox" id="cfgAbrirComWindows">
+        <span>
+          <strong>Abrir junto com o Windows</strong>
+          <em>Abre escondido, na bandeja — não pula na frente do que você está fazendo.</em>
+        </span>
+      </label>
+      <label class="chave-config">
+        <input type="checkbox" id="cfgBandeja">
+        <span>
+          <strong>Mostrar ícone ao lado do relógio</strong>
+          <em>Tira o launcher da barra de tarefas durante a live, sem fechar nada.</em>
+        </span>
+      </label>
+      <label class="chave-config">
+        <input type="checkbox" id="cfgFecharBandeja">
+        <span>
+          <strong>Fechar no X esconde, em vez de sair</strong>
+          <em>Só funciona com o ícone ligado. Para sair de vez, clique com o botão direito no ícone.</em>
+        </span>
+      </label>
+      <label class="chave-config">
+        <input type="checkbox" id="cfgJogoMaximizado">
+        <span>
+          <strong>Abrir os jogos maximizados</strong>
+          <em>Útil quando você captura a janela inteira no OBS.</em>
+        </span>
+      </label>
+    </section>
+
+    <section class="bloco-config">
+      <h3>Jogos de Roblox</h3>
+      <label class="chave-config">
+        <input type="checkbox" id="cfgTelaDividida">
+        <span>
+          <strong>Tela dividida: Studio de um lado, painel do outro</strong>
+          <em>
+            O Studio ocupa a metade esquerda do monitor e o painel a direita, já
+            encostados. Desligue se você usa dois monitores.
+          </em>
+        </span>
+      </label>
+      <label class="chave-config">
+        <input type="checkbox" id="cfgPlayAutomatico">
+        <span>
+          <strong>Dar Play sozinho quando o Studio abrir</strong>
+          <em>
+            Só com a tela dividida ligada. A interface do Studio continua
+            aparecendo — o Roblox não deixa escondê-la.
+          </em>
+        </span>
+      </label>
+      <div class="linha-config">
+        <div>
+          <strong>Mapa usado</strong>
+          <p class="explica-config" id="cfgMapaAtual">O mapa que vem com o jogo</p>
+          <p class="explica-config">
+            Escolha o seu <span class="mono">.rbxl</span> para jogar no cenário que
+            você construiu. O código do jogo continua chegando pela sincronização —
+            o seu arquivo não é alterado.
+          </p>
+        </div>
+        <div class="botoes-config">
+          <button type="button" id="cfgEscolherMapa" class="botao-secundario">Escolher…</button>
+          <button type="button" id="cfgMapaDoJogo" class="botao-secundario">Usar o do jogo</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="bloco-config">
+      <h3>Atualizações</h3>
+      <div class="linha-config">
+        <div>
+          <strong>Versão instalada <span id="cfgVersao" class="mono">—</span></strong>
+          <p class="explica-config" id="cfgAtualizacao">
+            As atualizações obrigatórias são instaladas na próxima vez que você
+            abrir o launcher — nunca no meio de uma live.
+          </p>
+        </div>
+        <button type="button" id="cfgConferir" class="botao-secundario">Conferir agora</button>
+      </div>
+    </section>
+
+    <section class="bloco-config">
+      <h3>Problemas e suporte</h3>
+      <div class="linha-config">
+        <div>
+          <strong>Deu problema?</strong>
+          <p class="explica-config">
+            Manda o que aconteceu para a gente, com o relatório técnico junto.
+          </p>
+        </div>
+        <button type="button" id="cfgSuporte" class="botao-secundario">Avisar o suporte</button>
+      </div>
+      <div class="linha-config">
+        <div>
+          <strong>Pasta dos dados</strong>
+          <p class="explica-config mono" id="cfgPasta">—</p>
+        </div>
+        <button type="button" id="cfgAbrirPasta" class="botao-secundario">Abrir a pasta</button>
+      </div>
+      <div class="linha-config">
+        <div>
+          <strong>Termos de Uso</strong>
+          <p class="explica-config">A versão que você aceitou, para ler quando quiser.</p>
+        </div>
+        <button type="button" id="cfgTermos" class="botao-secundario">Ler os Termos</button>
+      </div>
+    </section>
+
+    <p id="cfgAviso" class="aviso" hidden></p>
+  </div>
+</section>
+
+<div id="caixaMapa" class="caixa-mapa" hidden>
+  <div class="cx">
+    <h3>Em que mapa você vai jogar?</h3>
+    <p class="explica-config">
+      O código do jogo chega pela sincronização — o seu arquivo não é alterado.
+    </p>
+    <div id="listaMapas" class="lista-mapas"></div>
+    <p id="avisoMapa" class="aviso" hidden></p>
+    <div class="botoes-config">
+      <button type="button" id="btnMapaOutro" class="botao-secundario">Escolher outro arquivo…</button>
+      <button type="button" id="btnMapaJogar" class="botao-principal">JOGAR</button>
+      <button type="button" id="btnMapaCancelar" class="botao-texto">cancelar</button>
+    </div>
+  </div>
+</div>
+
+<div id="caixaModo" class="caixa-mapa caixa-modo" hidden>
+  <div class="cx">
+    <h3>Como você quer jogar?</h3>
+    <p class="explica-config">Dá para trocar depois, no painel do jogo.</p>
+    <div id="listaModos" class="lista-modos"></div>
+    <div class="botoes-config">
+      <button type="button" id="btnModoJogar" class="botao-principal">JOGAR</button>
+      <button type="button" id="btnModoCancelar" class="botao-texto">cancelar</button>
+    </div>
+  </div>
+</div>
+
+<section id="telaJogo" class="tela">
+  <div id="jogoFundo" class="jogo-fundo" aria-hidden="true"></div>
+
+  <div class="pagina-loja">
+    <button id="btnVoltar" class="botao-voltar"><svg class="ico" aria-hidden="true"><use href="#i-voltar"/></svg>Voltar</button>
+
+    <header class="loja-titulo">
+      <h2 id="jogoNome"></h2>
+      <div class="loja-titulo-linha">
+        <span id="jogoCategoria" class="etiqueta"></span>
+        <span id="jogoTags" class="loja-tags"></span>
+        <span class="loja-titulo-live"><svg class="ico" aria-hidden="true"><use href="#i-raio"/></svg>Feito para TikTok LIVE</span>
+      </div>
+    </header>
+
+    <div class="corpo-jogo">
+      <div class="sobre">
+        <div class="midia">
+          <div id="midiaPalco" class="midia-palco">
+            <video id="jogoClipe" class="clipe-jogo" muted loop playsinline preload="auto" hidden></video>
+            <img id="midiaFoto" class="midia-foto" alt="" hidden>
+            <button type="button" id="btnVideo" class="video-jogo" hidden>
+              <img id="videoCapa" src="" alt="" loading="lazy">
+              <span class="play" aria-hidden="true"><svg class="ico"><use href="#i-play"/></svg></span>
+              <span class="video-rotulo">Ver o vídeo de demonstração</span>
+            </button>
+          </div>
+          <p id="midiaLegenda" class="midia-legenda" hidden></p>
+          <div id="midiaTrilho" class="midia-trilho" role="tablist" aria-label="Imagens e vídeos do jogo"></div>
+        </div>
+
+        <p id="jogoPitch" class="pitch"></p>
+
+        <h3>Sobre o jogo</h3>
+        <p id="jogoSobre"></p>
+
+        <h3 class="recursos-titulo">Na sua live</h3>
+        <ul class="recursos">
+          <li>
+            <span class="recurso-ico"><svg class="ico" aria-hidden="true"><use href="#i-raio"/></svg></span>
+            <div><strong>Reage ao seu público</strong><span>Comentário, curtida, seguidor e presente viram ação na tela, na hora.</span></div>
+          </li>
+          <li>
+            <span class="recurso-ico"><svg class="ico" aria-hidden="true"><use href="#i-presente"/></svg></span>
+            <div><strong>Você decide cada presente</strong><span>O que cada presente faz se ajusta no painel, antes ou durante a live.</span></div>
+          </li>
+          <li>
+            <span class="recurso-ico"><svg class="ico" aria-hidden="true"><use href="#i-studio"/></svg></span>
+            <div><strong id="recursoOndeTitulo">Pronto para transmitir</strong><span id="recursoOndeTexto">Abre numa janela própria, do tamanho certo para capturar no TikTok LIVE Studio ou no OBS.</span></div>
+          </li>
+        </ul>
+      </div>
+
+      <aside class="info">
+        <img id="jogoCapa" class="info-capa" alt="" hidden>
+        <div id="jogoEstado" class="info-estado"></div>
+
+        <button id="btnJogar" class="botao-principal grande">JOGAR</button>
+        <button id="btnFecharJogo" class="botao-texto" hidden>Fechar o jogo</button>
+        <div id="compraJogo" class="compra-jogo" hidden>
+          <button id="btnComprarJogo" class="botao-secundario grande" type="button">COMPRAR</button>
+          <span class="compra-sub">Pague uma vez e o jogo é seu para sempre, com ou sem plano. Pix ou cartão.</span>
+        </div>
+        <div id="jogoParaSempre" class="para-sempre" hidden>Este jogo é seu para sempre</div>
+        <button id="btnTutorial" class="botao-texto com-ico" hidden><svg class="ico" aria-hidden="true"><use href="#i-play"/></svg><span class="rotulo">Ver tutorial</span></button>
+        <div id="listaTutoriais" class="tutoriais" hidden></div>
+        <p id="avisoJogo" class="aviso" hidden></p>
+
+      <div id="brindeJogo" class="brinde-jogo" hidden>
+        <h4>Ganhe <span id="brindeDias">1 dia</span> do plano completo</h4>
+        <ol class="brinde-passos">
+          <li id="brindePassoTempo">
+            <span class="marca" aria-hidden="true"></span>
+            <div>
+              <strong id="brindeTituloTempo">Jogue 5 horas</strong>
+              <div class="brinde-trilho"><div id="brindeBarra" class="brinde-barra"></div></div>
+              <small id="brindeHoras">0 min de 5 h</small>
+            </div>
+          </li>
+          <li id="brindePassoBau">
+            <span class="marca" aria-hidden="true"></span>
+            <div>
+              <strong>Resgate o baú no jogo</strong>
+              <small>Fica do lado da entrada dos estágios: curta, favorite o jogo e entre na comunidade.</small>
+            </div>
+          </li>
+        </ol>
+        <p id="brindeEstado" class="brinde-estado"></p>
+      </div>
+
+        <dl class="info-tabela">
+          <div><dt>Categoria</dt><dd id="infoCategoria"></dd></div>
+          <div><dt>Onde roda</dt><dd id="infoOnde"></dd></div>
+          <div><dt>Plano</dt><dd id="infoPlano"></dd></div>
+          <div><dt>Plataforma</dt><dd class="com-ico"><svg class="ico" aria-hidden="true"><use href="#i-windows"/></svg>Windows</dd></div>
+          <div><dt>TikTok LIVE</dt><dd class="sim">Compatível</dd></div>
+        </dl>
+      </aside>
+    </div>
+
+  <section class="acoes" id="secaoAcoes">
+    <header class="acoes-topo">
+      <h3>Ações <span class="selo">PADRÃO</span></h3>
+      <p class="acoes-texto">
+        Configure o que cada presente da live faz neste jogo. As mudanças
+        salvam sozinhas; <strong>Testar</strong> dispara a ação no jogo aberto.
+      </p>
+    </header>
+
+    <p id="acoesAviso" class="aviso atencao" hidden></p>
+    <div id="listaAcoes" class="grade-acoes"></div>
+  </section>
+  </div>
+</section>
+
+<div id="caixaFoto" class="cortina foto" hidden>
+  <figure class="foto-grande">
+    <img id="fotoGrande" src="" alt="">
+    <figcaption id="legendaFoto" hidden></figcaption>
+  </figure>
+</div>
+
+<div id="caixaStudio" class="cortina" hidden>
+  <div class="caixa">
+    <h2>Falta o Roblox Studio</h2>
+    <p class="caixa-texto" id="studioTexto">
+      Os jogos de Roblox rodam dentro do Roblox Studio — um programa gratuito
+      da própria Roblox. Posso baixar e abrir o instalador para você.
+    </p>
+    <p class="caixa-texto" id="studioAndando" hidden></p>
+    <p id="studioAviso" class="aviso" hidden></p>
+    <div class="caixa-botoes">
+      <button type="button" id="studioCancelar" class="botao-texto">Agora não</button>
+      <button type="button" id="studioInstalar" class="botao-principal">
+        INSTALAR O ROBLOX STUDIO
+      </button>
+    </div>
+    <button type="button" id="studioSite" class="botao-texto pequeno">
+      Prefiro baixar pelo site da Roblox
+    </button>
+    <button type="button" id="studioJaInstalei" class="botao-texto pequeno">
+      Já instalei — procurar de novo
+    </button>
+  </div>
+</div>
+
+<div id="caixaLojaAbriu" class="cortina" hidden>
+  <div class="caixa">
+    <h2 id="lojaAbriuTitulo">Agora todos os jogos são seus</h2>
+    <p class="caixa-texto" id="lojaAbriuTexto">
+      Saiu do "em breve": todos os jogos do RatGames já estão disponíveis na
+      loja, por assinatura mensal ou anual. Uma assinatura, a coleção inteira
+      — e tudo o que entrar depois.
+    </p>
+    <div class="caixa-botoes">
+      <button type="button" id="lojaAbriuDepois" class="botao-texto">Agora não</button>
+      <button type="button" id="lojaAbriuQuero" class="botao-principal">EU QUERO!</button>
+    </div>
+  </div>
+</div>
+
+<div id="caixaAnuncio" class="cortina" hidden>
+  <div class="caixa caixa-anuncio">
+    <div id="anuncioArte" class="anuncio-arte" aria-hidden="true"></div>
+    <span class="selo-gratis"><svg class="ico" aria-hidden="true"><use href="#i-presente"/></svg>GRÁTIS NO LAUNCHER</span>
+    <h2 id="anuncioTitulo"></h2>
+    <p class="caixa-texto" id="anuncioTexto"></p>
+    <div class="caixa-botoes">
+      <button type="button" id="anuncioDepois" class="botao-texto">Agora não</button>
+      <button type="button" id="anuncioJogar" class="botao-principal">JOGAR DE GRAÇA</button>
+    </div>
+  </div>
+</div>
+
+<div id="caixaSuporte" class="cortina" hidden>
+  <div class="caixa">
+    <h2>Deu problema?</h2>
+    <p class="caixa-texto">
+      Conte com as suas palavras o que aconteceu. O relatório técnico
+      (versão, Windows e as últimas linhas do registro) vai junto
+      automaticamente — você não precisa procurar nada.
+    </p>
+    <textarea id="suporteMensagem" rows="5" maxlength="2000"
+              placeholder="Ex.: cliquei em JOGAR no Avatares e a janela abriu preta."></textarea>
+    <p id="suporteAviso" class="aviso" hidden></p>
+    <div class="caixa-botoes">
+      <button type="button" id="suporteCancelar" class="botao-texto">Cancelar</button>
+      <button type="button" id="suporteEnviar" class="botao-principal">ENVIAR</button>
+    </div>
+    <button type="button" id="suportePasta" class="botao-texto pequeno">
+      Abrir a pasta do registro
+    </button>
+  </div>
+</div>
+
+<button id="botaoComunidade" class="botao-comunidade" type="button" hidden
+        title="Entrar na comunidade do Discord">
+  <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="currentColor">
+    <path d="M20.3 4.4A19.8 19.8 0 0 0 15.4 3l-.24.5a18.3 18.3 0 0 1 3.9 1.5 13.7 13.7 0 0 0-11.9 0 18.3 18.3 0 0 1 3.9-1.5L11 3a19.8 19.8 0 0 0-4.9 1.4C2.6 9.6 1.9 14.7 2.3 19.8a20 20 0 0 0 6 3l.8-1.4c-.7-.3-1.4-.6-2-1l.5-.4a14.3 14.3 0 0 0 12.3 0l.5.4c-.6.4-1.3.7-2 1l.8 1.4a20 20 0 0 0 6-3c.5-6-.7-11-3.6-15.4zM9 15.7c-1 0-1.8-.9-1.8-2s.8-2 1.8-2 1.8.9 1.8 2-.8 2-1.8 2zm6 0c-1 0-1.8-.9-1.8-2s.8-2 1.8-2 1.8.9 1.8 2-.8 2-1.8 2z"/>
+  </svg>
+  <span>Comunidade</span>
+</button>
+
+<script src="idioma-es.js"></script>
+<script src="idioma.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

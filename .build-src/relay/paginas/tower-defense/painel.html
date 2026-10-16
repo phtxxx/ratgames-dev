@@ -1,0 +1,581 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Painel da Live — Tower Defense</title>
+<style>
+  /* Tudo local, sem CDN: o painel funciona offline, junto com o relay. */
+  :root {
+    --fundo: #0d1117; --cartao: #161b22; --borda: #2d333b;
+    --texto: #e6edf3; --texto2: #8b949e; --acento: #58a6ff;
+    --ok: #3fb950; --erro: #f85149; --moeda: #f0b72f;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    background: var(--fundo); color: var(--texto);
+    font: 14px/1.5 "Segoe UI", system-ui, sans-serif;
+    padding: 24px; max-width: 1180px; margin: 0 auto;
+  }
+  h1 { font-size: 22px; margin-bottom: 4px; }
+  .sub { color: var(--texto2); margin-bottom: 16px; }
+  .barra {
+    position: sticky; top: 0; z-index: 20; display: flex; gap: 10px;
+    align-items: center; padding: 12px 0; background: var(--fundo);
+    border-bottom: 1px solid var(--borda); margin-bottom: 18px;
+  }
+  button {
+    background: var(--acento); color: #04131f; border: 0; border-radius: 8px;
+    padding: 9px 18px; font-weight: 700; font-size: 14px; cursor: pointer;
+  }
+  button.secundario { background: var(--cartao); color: var(--texto); border: 1px solid var(--borda); }
+  button.perigo { background: transparent; color: var(--erro); border: 1px solid var(--borda); padding: 4px 10px; }
+  button.mini { background: transparent; color: var(--texto2); border: 1px solid var(--borda); padding: 4px 10px; }
+  button.mini:hover { color: var(--texto); }
+  button.testar { background: transparent; color: var(--ok); border: 1px solid var(--borda); padding: 4px 10px; }
+  .simular { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 4px; }
+  .simular button { background: var(--cartao); color: var(--texto); border: 1px solid var(--borda); }
+  button:hover { filter: brightness(1.15); }
+  #estado { color: var(--texto2); margin-left: auto; }
+  #estado.ok { color: var(--ok); }
+  #estado.erro { color: var(--erro); }
+  h2 { font-size: 15px; color: var(--texto2); text-transform: uppercase;
+       letter-spacing: .08em; margin: 26px 0 10px; }
+  .grade { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 14px; }
+  .cartao {
+    background: var(--cartao); border: 1px solid var(--borda);
+    border-radius: 12px; padding: 14px; border-top: 3px solid var(--faixa, var(--borda));
+  }
+  .cartao.inativo { opacity: .45; }
+  .cab { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .cab img { width: 44px; height: 44px; border-radius: 8px; background: #0a0d12; object-fit: contain; }
+  .cab .tit { font-size: 15px; font-weight: 700; }
+  .cab .moedas { color: var(--moeda); font-size: 12px; font-weight: 700; }
+  .cab .desc { color: var(--texto2); font-size: 12px; }
+  .cab .direita { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+  .campos { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 7px 10px; }
+  label { display: flex; flex-direction: column; gap: 2px; font-size: 11px; color: var(--texto2); }
+  input[type=number], input[type=text] {
+    background: var(--fundo); color: var(--texto); border: 1px solid var(--borda);
+    border-radius: 6px; padding: 5px 7px; font-size: 13px; width: 100%;
+  }
+  input[type=color] { border: 1px solid var(--borda); border-radius: 6px;
+    background: var(--fundo); height: 30px; width: 100%; padding: 2px; cursor: pointer; }
+  input:focus { outline: 1px solid var(--acento); }
+  .largo { grid-column: 1 / -1; }
+  /* interruptor liga/desliga */
+  .chave { position: relative; width: 40px; height: 22px; flex: none; }
+  .chave input { display: none; }
+  .chave span {
+    position: absolute; inset: 0; background: var(--borda); border-radius: 22px;
+    cursor: pointer; transition: background .15s;
+  }
+  .chave span::after {
+    content: ""; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px;
+    background: #fff; border-radius: 50%; transition: left .15s;
+  }
+  .chave input:checked + span { background: var(--ok); }
+  .chave input:checked + span::after { left: 21px; }
+  /* busca de presentes */
+  .busca { position: relative; margin-bottom: 14px; }
+  .busca input[type=text] { padding: 10px 12px; font-size: 15px; }
+  #resultados {
+    position: absolute; top: 100%; left: 0; right: 0; z-index: 10;
+    background: var(--cartao); border: 1px solid var(--borda); border-radius: 10px;
+    max-height: 340px; overflow-y: auto; display: none; margin-top: 4px;
+  }
+  #resultados .item {
+    display: flex; align-items: center; gap: 10px; padding: 7px 12px; cursor: pointer;
+  }
+  #resultados .item:hover { background: #1f2630; }
+  #resultados img { width: 34px; height: 34px; object-fit: contain; border-radius: 6px; background: #0a0d12; }
+  #resultados .m { margin-left: auto; color: var(--moeda); font-weight: 700; font-size: 12px; }
+  #resultados .ja { color: var(--texto2); font-size: 11px; margin-left: 8px; }
+  .dica { color: var(--texto2); font-size: 12px; margin-top: 14px; }
+</style>
+</head>
+<body>
+  <h1>🎯 Painel da Live — Tower Defense</h1>
+  <div class="sub">Mexa nos números e clique <b>Salvar</b>: o jogo obedece em até 3 segundos, no meio da live, sem reiniciar nada.</div>
+
+  <div class="barra">
+    <button id="salvar">💾 Salvar</button>
+    <button id="recarregar" class="secundario">↩️ Recarregar</button>
+    <button id="padrao" class="secundario">🧹 Restaurar padrão</button>
+    <span id="estado">carregando…</span>
+  </div>
+
+  <h2>Geral</h2>
+  <div class="grade">
+    <div class="cartao" style="--faixa:#f85149">
+      <div class="cab"><div><div class="tit">☠️ Game over</div>
+        <div class="desc">Escapes até o game over (aí tudo zera e recomeça).</div></div></div>
+      <div class="campos">
+        <label class="largo">limite de escapes
+          <input type="number" data-caminho="limite_escapes" min="1" max="999" step="1"></label>
+      </div>
+    </div>
+    <div class="cartao" style="--faixa:#d29922">
+      <div class="cab"><div><div class="tit">🔫 Metralhadora (base)</div>
+        <div class="desc">Valores iniciais, antes dos upgrades da live.</div></div></div>
+      <div class="campos">
+        <label>dano por bala
+          <input type="number" data-caminho="arma.dano" min="1" max="10000" step="1"></label>
+        <label>balas por segundo
+          <input type="number" data-caminho="arma.tiros_por_s" min="1" max="20" step="0.5"></label>
+      </div>
+    </div>
+    <div class="cartao" style="--faixa:#a371f7">
+      <div class="cab"><div><div class="tit">⬆️ Upgrade de dano</div>
+        <div class="desc">preço = base × fator^nível · bônus 0.25 = +25%/nível.</div></div></div>
+      <div class="campos">
+        <label>preço base
+          <input type="number" data-caminho="upgrades.dano.preco_base" min="1" max="1000000" step="1"></label>
+        <label>fator de preço
+          <input type="number" data-caminho="upgrades.dano.preco_fator" min="1" max="10" step="0.1"></label>
+        <label>bônus por nível
+          <input type="number" data-caminho="upgrades.dano.bonus_por_nivel" min="0" max="5" step="0.05"></label>
+      </div>
+    </div>
+    <div class="cartao" style="--faixa:#a371f7">
+      <div class="cab"><div><div class="tit">⚡ Upgrade de cadência</div>
+        <div class="desc">Igual ao de dano, mas acelera as balas por segundo.</div></div></div>
+      <div class="campos">
+        <label>preço base
+          <input type="number" data-caminho="upgrades.cadencia.preco_base" min="1" max="1000000" step="1"></label>
+        <label>fator de preço
+          <input type="number" data-caminho="upgrades.cadencia.preco_fator" min="1" max="10" step="0.1"></label>
+        <label>bônus por nível
+          <input type="number" data-caminho="upgrades.cadencia.bonus_por_nivel" min="0" max="5" step="0.05"></label>
+      </div>
+    </div>
+    <div class="cartao" style="--faixa:#3fb950">
+      <div class="cab"><div><div class="tit">🗼 Torretas</div>
+        <div class="desc">Compradas na HUD; atiram sozinhas nos inimigos que entram no alcance. preço da Nª = base × fator^N.</div></div></div>
+      <div class="campos">
+        <label>preço base
+          <input type="number" data-caminho="torreta.preco_base" min="1" max="1000000" step="1"></label>
+        <label>fator de preço
+          <input type="number" data-caminho="torreta.preco_fator" min="1" max="10" step="0.1"></label>
+        <label>dano por tiro
+          <input type="number" data-caminho="torreta.dano" min="1" max="10000" step="1"></label>
+        <label>alcance (studs)
+          <input type="number" data-caminho="torreta.alcance" min="10" max="500" step="5"></label>
+        <label>tiros por segundo
+          <input type="number" data-caminho="torreta.tiros_por_s" min="0.2" max="20" step="0.1"></label>
+      </div>
+    </div>
+    <div class="cartao" style="--faixa:#3fb950">
+      <div class="cab"><div><div class="tit">🗼 Upgrade de torreta</div>
+        <div class="desc">Andando até UMA torreta e comprando nela — cada uma upa separado.</div></div></div>
+      <div class="campos">
+        <label>preço base
+          <input type="number" data-caminho="torreta.upgrade.preco_base" min="1" max="1000000" step="1"></label>
+        <label>fator de preço
+          <input type="number" data-caminho="torreta.upgrade.preco_fator" min="1" max="10" step="0.1"></label>
+        <label>bônus por nível
+          <input type="number" data-caminho="torreta.upgrade.bonus_por_nivel" min="0" max="5" step="0.05"></label>
+      </div>
+    </div>
+  </div>
+
+  <h2>Testes rápidos (manda o evento pro jogo AGORA, como se viesse da live)</h2>
+  <div class="simular">
+    <button data-simular="comentario">💬 Comentário</button>
+    <button data-simular="curtida">❤️ Curtidas (1 leva)</button>
+    <button data-simular="seguiu">➕ Seguiu</button>
+    <button data-simular="compartilhou">📤 Compartilhou</button>
+    <button data-simular="presente_padrao">🎁 Presente sem gatilho (aleatório)</button>
+  </div>
+
+  <h2>Ações da live (cada uma spawna um inimigo — desligue o que não quiser)</h2>
+  <div class="grade" id="acoes"></div>
+
+  <h2>Presentes com gatilho próprio</h2>
+  <div class="busca">
+    <input type="text" id="buscar" placeholder="🔍 Buscar presente pra adicionar… (ex.: rose, lion, galaxy)" autocomplete="off">
+    <div id="resultados"></div>
+  </div>
+  <div class="grade" id="presentes"></div>
+
+  <div class="dica">
+    💡 <b>vida</b>: balas pra matar = vida ÷ dano da arma ·
+    <b>quantidade + rajada</b>: 20 inimigos em 30s = uma horda ·
+    <b>aura</b>: brilho de 0 a 5 ·
+    <b>🗼 torretas grátis</b>: quantas torretas o streamer ganha DE GRAÇA quando aquele gatilho dispara ·
+    presente sem gatilho próprio usa o cartão <b>“presente (qualquer outro)”</b>, que escala pelo valor em moedas.
+  </div>
+
+<script>
+  // Tokens do relay LOCAL (os mesmos do iniciar_live.bat). Isto roda só na
+  // sua máquina: o relay escuta em 127.0.0.1 e não é alcançável de fora.
+  const TOKEN_LEITURA = "pull-local";
+  const TOKEN_ESCRITA = "push-local";
+
+  const CAMPOS_EFEITO = [
+    ["vida", "vida", 1, 100000, 1],
+    ["velocidade", "velocidade", 2, 30, 0.5],
+    ["escala", "tamanho (1–4)", 0.5, 4, 0.1],
+    ["aura", "aura (0–5)", 0, 5, 1],
+    ["pontos", "pontos/kill", 0, 1000000, 1],
+    ["dinheiro", "dinheiro/kill", 0, 1000000, 1],
+    ["quantidade", "quantidade", 1, 40, 1],
+    ["rajada_s", "rajada (s)", 0, 120, 1],
+    ["torretas_gratis", "🗼 torretas grátis", 0, 10, 1],
+  ];
+
+  const ACOES = [
+    ["comentario", "💬", "Comentário", "Quem comenta o nick do Roblox."],
+    ["curtida", "❤️", "Curtidas", "A cada N curtidas da live, spawna quem completou a conta."],
+    ["seguiu", "➕", "Seguiu", "Quem segue você durante a live."],
+    ["compartilhou", "📤", "Compartilhou", "Quem compartilha a live."],
+    ["presente_padrao", "🎁", "Presente (qualquer outro)", "Presente SEM gatilho próprio cai aqui — escala pelo valor em moedas."],
+  ];
+
+  let catalogo = [];               // [{nome, rotulo, moedas, imagem}]
+  const porNome = new Map();       // nome -> item do catálogo
+
+  const $ = (s, raiz) => (raiz || document).querySelector(s);
+  const estado = $("#estado");
+  function avisar(msg, classe) { estado.textContent = msg; estado.className = classe || ""; }
+  function sujo() { avisar("alterações não salvas…"); }
+
+  function campoHtml(prefixo, [campo, rotulo, min, max, step]) {
+    return `<label>${rotulo}
+      <input type="number" data-caminho="${prefixo}.${campo}" min="${min}" max="${max}" step="${step}"></label>`;
+  }
+  function corHtml(prefixo) {
+    return `<label>cor do nome/aura
+      <input type="color" data-caminho="${prefixo}.cor" data-cor="1"></label>`;
+  }
+
+  // ── cartões das ações ──
+  const divAcoes = $("#acoes");
+  for (const [chave, emoji, titulo, desc] of ACOES) {
+    const card = document.createElement("div");
+    card.className = "cartao";
+    card.dataset.acao = chave;
+    const extras =
+      chave === "curtida"
+        ? `<label>a cada N curtidas
+             <input type="number" data-caminho="acoes.curtida.a_cada" min="1" max="1000000" step="1"></label>`
+        : chave === "presente_padrao"
+        ? `<label>+vida por moeda
+             <input type="number" data-caminho="acoes.presente_padrao.vida_por_moeda" min="0" max="1000" step="0.5"></label>
+           <label>+pontos por moeda
+             <input type="number" data-caminho="acoes.presente_padrao.pontos_por_moeda" min="0" max="1000" step="0.5"></label>
+           <label>+dinheiro por moeda
+             <input type="number" data-caminho="acoes.presente_padrao.dinheiro_por_moeda" min="0" max="1000" step="0.5"></label>`
+        : "";
+    card.innerHTML = `
+      <div class="cab">
+        <div><div class="tit">${emoji} ${titulo}</div><div class="desc">${desc}</div></div>
+        <div class="direita"><label class="chave">
+          <input type="checkbox" data-ativo="acoes.${chave}"><span></span></label></div>
+      </div>
+      <div class="campos">
+        ${corHtml("acoes." + chave)}
+        ${extras}
+        ${CAMPOS_EFEITO.map((c) => campoHtml("acoes." + chave, c)).join("")}
+      </div>`;
+    divAcoes.appendChild(card);
+  }
+
+  // ── cartões de presente ──
+  const divPresentes = $("#presentes");
+
+  function infoDoCatalogo(nome) {
+    return porNome.get(nome) || { nome, rotulo: nome, moedas: null, imagem: null };
+  }
+
+  // Cartão que está esperando um novo presente da busca (botão ⇄).
+  let trocandoCard = null;
+
+  function atualizarCabecalho(card) {
+    const info = infoDoCatalogo(card.dataset.presente);
+    card.querySelector(".cab .tit").textContent = info.rotulo;
+    card.querySelector(".cab .moedas").textContent = `🪙 ${info.moedas ?? "?"} moedas`;
+    let img = card.querySelector(".cab img");
+    if (info.imagem) {
+      if (!img) {
+        img = document.createElement("img");
+        img.loading = "lazy";
+        card.querySelector(".cab").prepend(img);
+      }
+      img.src = info.imagem;
+    } else if (img) {
+      img.remove();
+    }
+  }
+
+  function cartaoPresente(nome, efeito) {
+    const card = document.createElement("div");
+    card.className = "cartao";
+    card.dataset.presente = nome;
+    card.style.setProperty("--faixa", "#" + (efeito.cor || "888888"));
+    card.innerHTML = `
+      <div class="cab">
+        <div><div class="tit"></div><div class="moedas"></div></div>
+        <div class="direita">
+          <button class="testar" title="manda este presente pro jogo agora">▶</button>
+          <button class="mini" title="trocar qual presente dispara este gatilho (mantém os números)">⇄</button>
+          <button class="perigo" title="tirar o gatilho deste presente">✕</button>
+        </div>
+      </div>
+      <div class="campos">
+        <label>cor do nome/aura
+          <input type="color" data-campo="cor" data-cor="1"></label>
+        ${CAMPOS_EFEITO.map(([c, rotulo, min, max, step]) => `
+          <label>${rotulo}
+            <input type="number" data-campo="${c}" min="${min}" max="${max}" step="${step}"></label>`).join("")}
+      </div>`;
+    atualizarCabecalho(card);
+    for (const [campo] of CAMPOS_EFEITO) {
+      card.querySelector(`[data-campo="${campo}"]`).value = efeito[campo];
+    }
+    card.querySelector('[data-campo="cor"]').value = "#" + (efeito.cor || "FFFFFF");
+    card.querySelector(".perigo").onclick = () => { card.remove(); sujo(); };
+    card.querySelector(".testar").onclick = () => {
+      const info = infoDoCatalogo(card.dataset.presente);
+      simularPresente(info.nome, info.moedas ?? 0);
+    };
+    card.querySelector(".mini").onclick = () => {
+      trocandoCard = card;
+      caixaBusca.placeholder = `⇄ escolha o NOVO presente para o gatilho de “${infoDoCatalogo(card.dataset.presente).rotulo}”…`;
+      caixaBusca.focus();
+    };
+    card.querySelectorAll("input").forEach((el) => el.addEventListener("input", sujo));
+    divPresentes.appendChild(card);
+  }
+
+  // Um presente recém-adicionado nasce com números proporcionais ao valor —
+  // a mesma fórmula do "presente padrão", pra não começar do zero.
+  function efeitoSugerido(moedas) {
+    const m = moedas ?? 10;
+    return {
+      vida: Math.min(100000, Math.round(80 + 3 * m)),
+      escala: m >= 1000 ? 3 : m >= 100 ? 2.2 : m >= 30 ? 1.6 : 1.1,
+      velocidade: m >= 1000 ? 7 : m >= 100 ? 8 : 10,
+      aura: m >= 1000 ? 5 : m >= 500 ? 4 : m >= 100 ? 3 : m >= 30 ? 2 : 1,
+      cor: ["FF9EC4", "FFA321", "27E1FF", "B14BFF"][m >= 1000 ? 3 : m >= 100 ? 2 : m >= 30 ? 1 : 0],
+      pontos: Math.min(1000000, Math.round(20 + m)),
+      dinheiro: Math.min(1000000, Math.round(15 + m)),
+      quantidade: 1,
+      rajada_s: 0,
+      torretas_gratis: 0,
+    };
+  }
+
+  // ── busca ──
+  const caixaBusca = $("#buscar");
+  const divResultados = $("#resultados");
+  function renderBusca() {
+    const termo = caixaBusca.value.trim().toLowerCase();
+    if (!termo) { divResultados.style.display = "none"; return; }
+    const jaTem = new Set([...divPresentes.children].map((c) => c.dataset.presente));
+    const achados = catalogo
+      .filter((p) => p.nome.includes(termo) || p.rotulo.toLowerCase().includes(termo))
+      .slice(0, 30);
+    divResultados.innerHTML = achados.length
+      ? achados.map((p) => `
+          <div class="item" data-nome="${p.nome}">
+            ${p.imagem ? `<img src="${p.imagem}" loading="lazy" alt="">` : "<span style='width:34px'></span>"}
+            <span>${p.rotulo}</span>
+            ${jaTem.has(p.nome) ? '<span class="ja">já tem gatilho</span>' : ""}
+            <span class="m">🪙 ${p.moedas ?? "?"}</span>
+          </div>`).join("")
+      : `<div class="item">nenhum presente com “${termo}”</div>`;
+    divResultados.style.display = "block";
+    divResultados.querySelectorAll(".item[data-nome]").forEach((el) => {
+      el.onclick = () => {
+        const nome = el.dataset.nome;
+        const existente = divPresentes.querySelector(`[data-presente="${CSS.escape(nome)}"]`);
+        if (trocandoCard) {
+          // Modo troca (⇄): re-aponta o cartão pro presente escolhido,
+          // MANTENDO os números configurados.
+          if (existente && existente !== trocandoCard) {
+            avisar("esse presente já tem um gatilho próprio", "erro");
+            existente.scrollIntoView({ behavior: "smooth", block: "center" });
+          } else {
+            trocandoCard.dataset.presente = nome;
+            atualizarCabecalho(trocandoCard);
+            sujo();
+          }
+          trocandoCard = null;
+          caixaBusca.placeholder = "🔍 Buscar presente pra adicionar… (ex.: rose, lion, galaxy)";
+        } else if (existente) {
+          existente.scrollIntoView({ behavior: "smooth", block: "center" });
+        } else {
+          cartaoPresente(nome, efeitoSugerido(infoDoCatalogo(nome).moedas));
+          sujo();
+        }
+        caixaBusca.value = "";
+        divResultados.style.display = "none";
+      };
+    });
+  }
+  caixaBusca.addEventListener("input", renderBusca);
+  caixaBusca.addEventListener("focus", renderBusca);
+  document.addEventListener("click", (e) => {
+    if (!e.target.closest(".busca")) divResultados.style.display = "none";
+  });
+
+  // ── ler/gravar o formulário ──
+  function pegar(obj, caminho) {
+    return caminho.split(".").reduce((o, k) => (o ? o[k] : undefined), obj);
+  }
+  function pôr(obj, caminho, valor) {
+    const partes = caminho.split(".");
+    let o = obj;
+    for (const k of partes.slice(0, -1)) o = o[k] = o[k] || {};
+    o[partes.at(-1)] = valor;
+  }
+
+  function preencher(cfg) {
+    for (const el of document.querySelectorAll("[data-caminho]")) {
+      const v = pegar(cfg, el.dataset.caminho);
+      if (v === undefined) continue;
+      el.value = el.dataset.cor ? "#" + v : v;
+    }
+    for (const el of document.querySelectorAll("[data-ativo]")) {
+      const acao = pegar(cfg, el.dataset.ativo);
+      el.checked = !!(acao && acao.ativo);
+      el.closest(".cartao").classList.toggle("inativo", !el.checked);
+    }
+    divPresentes.innerHTML = "";
+    for (const [nome, efeito] of Object.entries(cfg.presentes || {})) {
+      cartaoPresente(nome, efeito);
+    }
+  }
+
+  function coletar() {
+    const cfg = {};
+    for (const el of document.querySelectorAll("[data-caminho]")) {
+      const v = el.dataset.cor ? el.value.replace("#", "").toUpperCase() : Number(el.value);
+      pôr(cfg, el.dataset.caminho, v);
+    }
+    for (const el of document.querySelectorAll("[data-ativo]")) {
+      pôr(cfg, el.dataset.ativo + ".ativo", el.checked);
+    }
+    cfg.presentes = {};
+    for (const card of divPresentes.children) {
+      const efeito = {};
+      for (const el of card.querySelectorAll("[data-campo]")) {
+        efeito[el.dataset.campo] = el.dataset.cor
+          ? el.value.replace("#", "").toUpperCase()
+          : Number(el.value);
+      }
+      cfg.presentes[card.dataset.presente] = efeito;
+    }
+    return cfg;
+  }
+
+  // ── simulação de eventos (manda pro /push, igual o feeder faria) ──
+  async function enviarEvento(ev, rotulo) {
+    try {
+      const r = await fetch("/push", {
+        method: "POST",
+        headers: { "content-type": "application/json", "x-token": TOKEN_ESCRITA },
+        body: JSON.stringify({ eventos: [ev] }),
+      });
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      avisar(`🧪 ${rotulo} enviado — precisa do jogo em Play pra aparecer`, "ok");
+    } catch (e) {
+      avisar("falha ao simular (" + e.message + ")", "erro");
+    }
+  }
+
+  function eventoBase(tipo) {
+    return { tipo, tiktok_id: "painel", nickname: "🧪 Painel", roblox_id: 0,
+             presente: "", moedas: 0, vezes: 1 };
+  }
+
+  function simularPresente(nome, moedas) {
+    const ev = eventoBase("presente");
+    ev.presente = nome;
+    ev.moedas = moedas;
+    enviarEvento(ev, `presente “${nome}” (${moedas} moedas)`);
+  }
+
+  document.querySelectorAll("[data-simular]").forEach((btn) => {
+    btn.onclick = () => {
+      const tipo = btn.dataset.simular;
+      if (tipo === "presente_padrao") {
+        // Um presente que NÃO tem cartão: cai na regra "presente (qualquer
+        // outro)" — é o teste dela.
+        const comCartao = new Set([...divPresentes.children].map((c) => c.dataset.presente));
+        const soltos = catalogo.filter((p) => p.moedas && !comCartao.has(p.nome));
+        const p = soltos.length
+          ? soltos[Math.floor(Math.random() * soltos.length)]
+          : { nome: "hand hearts", moedas: 100 };
+        simularPresente(p.nome, p.moedas);
+        return;
+      }
+      const ev = eventoBase(tipo);
+      if (tipo === "curtida") {
+        // Manda exatamente uma "leva" (o a_cada atual): 1 clique = 1 inimigo.
+        const aCada = Number($('[data-caminho="acoes.curtida.a_cada"]').value) || 200;
+        ev.vezes = aCada;
+        enviarEvento(ev, `${aCada} curtidas`);
+        return;
+      }
+      enviarEvento(ev, { comentario: "comentário", seguiu: "seguiu", compartilhou: "compartilhou" }[tipo] || tipo);
+    };
+  });
+
+  async function carregarCatalogo() {
+    try {
+      const r = await fetch("/presentes");
+      catalogo = (await r.json()).presentes || [];
+      porNome.clear();
+      for (const p of catalogo) porNome.set(p.nome, p);
+    } catch { /* sem catálogo o painel ainda funciona, só sem busca */ }
+  }
+
+  async function carregar() {
+    avisar("carregando…");
+    try {
+      const r = await fetch("/config", { headers: { "x-token": TOKEN_LEITURA } });
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      preencher(await r.json());
+      avisar("configuração carregada ✓", "ok");
+    } catch (e) {
+      avisar("não consegui falar com o relay (" + e.message + ")", "erro");
+    }
+  }
+
+  async function salvar(corpo) {
+    avisar("salvando…");
+    try {
+      const r = await fetch("/config", {
+        method: "POST",
+        headers: { "content-type": "application/json", "x-token": TOKEN_ESCRITA },
+        body: JSON.stringify(corpo),
+      });
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      const { config } = await r.json();
+      preencher(config); // mostra o que o relay REALMENTE gravou (já saneado)
+      avisar("salvo ✓ — o jogo aplica em até 3s", "ok");
+    } catch (e) {
+      avisar("falha ao salvar (" + e.message + ")", "erro");
+    }
+  }
+
+  $("#salvar").onclick = () => salvar(coletar());
+  $("#recarregar").onclick = carregar;
+  // POST {} = o relay normaliza para o padrão de fábrica e grava.
+  $("#padrao").onclick = () => {
+    if (confirm("Voltar TUDO para o padrão de fábrica?")) salvar({});
+  };
+  document.querySelectorAll("[data-caminho]").forEach((el) =>
+    el.addEventListener("input", sujo));
+  document.querySelectorAll("[data-ativo]").forEach((el) =>
+    el.addEventListener("change", () => {
+      el.closest(".cartao").classList.toggle("inativo", !el.checked);
+      sujo();
+    }));
+
+  carregarCatalogo().then(carregar);
+</script>
+</body>
+</html>

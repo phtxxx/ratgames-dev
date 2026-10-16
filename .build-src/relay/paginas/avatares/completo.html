@@ -1,0 +1,1678 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Multidão — ajustes avançados</title>
+<style>
+  /* Tudo local, sem CDN: o painel funciona offline, junto com o relay.
+
+     ESTA É A TELA COMPLETA (avançada) do modo MULTIDÃO — o antigo /painel,
+     renomeado. O /painel de hoje é o shell simples com páginas
+     (painel.html), e ele embute esta aqui com ?embutido=1 quando a pessoa
+     clica em "Avançado". Embutida, ela esconde o próprio cabeçalho e a
+     caixa da live (o shell já tem os dois) — só ESCONDE, via CSS: os campos
+     continuam no DOM, porque o coletar() salva a config inteira a partir
+     deles. */
+  body.embutido h1, body.embutido > .sub, body.embutido #caixaLive { display: none; }
+  :root {
+    --fundo: #0d1117; --cartao: #161b22; --borda: #2d333b;
+    --texto: #e6edf3; --texto2: #8b949e; --acento: #58a6ff;
+    --ok: #3fb950; --erro: #f85149; --moeda: #f0b72f;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body { background: var(--fundo); color: var(--texto);
+    font: 14px/1.5 "Segoe UI", system-ui, sans-serif;
+    padding: 24px; max-width: 1180px; margin: 0 auto; }
+  h1 { font-size: 22px; margin-bottom: 4px; }
+  .sub { color: var(--texto2); margin-bottom: 16px; }
+  .barra { position: sticky; top: 0; z-index: 20; display: flex; gap: 10px;
+    align-items: center; padding: 12px 0; background: var(--fundo);
+    border-bottom: 1px solid var(--borda); margin-bottom: 18px; }
+  button { background: var(--acento); color: #04131f; border: 0; border-radius: 8px;
+    padding: 9px 18px; font-weight: 700; font-size: 14px; cursor: pointer; }
+  button.secundario { background: var(--cartao); color: var(--texto); border: 1px solid var(--borda); }
+  button.perigo { background: transparent; color: var(--erro); border: 1px solid var(--borda); padding: 4px 10px; }
+  button.mini { background: transparent; color: var(--texto2); border: 1px solid var(--borda); padding: 4px 10px; }
+  button.mini:hover { color: var(--texto); }
+  button:hover { filter: brightness(1.15); }
+  #estado { color: var(--texto2); margin-left: auto; }
+  #estado.ok { color: var(--ok); }
+  #estado.erro { color: var(--erro); }
+  h2 { font-size: 15px; color: var(--texto2); text-transform: uppercase;
+       letter-spacing: .08em; margin: 26px 0 10px; }
+  .grade { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 14px; }
+  .cartao { background: var(--cartao); border: 1px solid var(--borda);
+    border-radius: 12px; padding: 14px; border-top: 3px solid var(--faixa, var(--borda)); }
+  .cartao.inativo { opacity: .45; }
+  .cab { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .cab img { width: 44px; height: 44px; border-radius: 8px; background: #0a0d12; object-fit: contain; }
+  .cab .tit { font-size: 15px; font-weight: 700; }
+  .cab .moedas { color: var(--moeda); font-size: 12px; font-weight: 700; }
+  .cab .desc { color: var(--texto2); font-size: 12px; }
+
+  /* ---- o mini console de erros, embaixo do Conectar ----
+     Preto de terminal e fonte monoespaçada de propósito: a pessoa precisa
+     reconhecer, em meio segundo, que aquilo ali é "o texto técnico que o
+     suporte pede" -- e não mais um ajuste do jogo. */
+  .console-erros { margin-top: 12px; border: 1px solid var(--borda);
+    border-radius: 8px; background: #0a0d12; overflow: hidden; }
+  .console-cab { display: flex; align-items: center; gap: 10px;
+    padding: 7px 10px; border-bottom: 1px solid var(--borda); }
+  .console-tit { color: var(--erro); font-size: 12px; font-weight: 700; }
+  .console-botoes { margin-left: auto; display: flex; gap: 6px; }
+  .console-corpo { max-height: 168px; overflow-y: auto; padding: 8px 10px;
+    font: 11.5px/1.55 Consolas, "Cascadia Mono", monospace;
+    color: #d7dde5; white-space: pre-wrap; word-break: break-word; }
+  .console-linha { padding: 2px 0; border-top: 1px solid #171c23; }
+  .console-linha:first-child { border-top: 0; }
+  .console-hora { color: var(--texto2); }
+  .console-pe { padding: 6px 10px; border-top: 1px solid var(--borda);
+    color: var(--texto2); font-size: 11px; }
+  .cab .direita { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+  .campos { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 7px 10px; }
+  label { display: flex; flex-direction: column; gap: 2px; font-size: 11px; color: var(--texto2); }
+  input[type=number], input[type=text], select {
+    background: var(--fundo); color: var(--texto); border: 1px solid var(--borda);
+    border-radius: 6px; padding: 5px 7px; font-size: 13px; width: 100%; }
+  input[type=color] { border: 1px solid var(--borda); border-radius: 6px;
+    background: var(--fundo); height: 30px; width: 100%; padding: 2px; cursor: pointer; }
+  input:focus, select:focus { outline: 1px solid var(--acento); }
+  .largo { grid-column: 1 / -1; }
+  /* interruptor liga/desliga */
+  .chave { position: relative; width: 40px; height: 22px; flex: none; }
+  .chave input { display: none; }
+  .chave span { position: absolute; inset: 0; background: var(--borda); border-radius: 22px;
+    cursor: pointer; transition: background .15s; }
+  .chave span::after { content: ""; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px;
+    background: #fff; border-radius: 50%; transition: left .15s; }
+  .chave input:checked + span { background: var(--ok); }
+  .chave input:checked + span::after { left: 21px; }
+  /* busca de presentes */
+  .busca { position: relative; margin-bottom: 14px; }
+  .busca input[type=text] { padding: 10px 12px; font-size: 15px; }
+  #resultados { position: absolute; top: 100%; left: 0; right: 0; z-index: 10;
+    background: var(--cartao); border: 1px solid var(--borda); border-radius: 10px;
+    max-height: 340px; overflow-y: auto; display: none; margin-top: 4px; }
+  #resultados .item { display: flex; align-items: center; gap: 10px; padding: 7px 12px; cursor: pointer; }
+  #resultados .item:hover { background: #1f2630; }
+  #resultados img { width: 34px; height: 34px; object-fit: contain; border-radius: 6px; background: #0a0d12; }
+  #resultados .m { margin-left: auto; color: var(--moeda); font-weight: 700; font-size: 12px; }
+  #resultados .ja { color: var(--texto2); font-size: 11px; margin-left: 8px; }
+  .dica { color: var(--texto2); font-size: 12px; margin-top: 20px;
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .dica b { color: var(--texto); font-family: ui-monospace, Consolas, monospace; }
+  /* ── a Voz (gravação por categoria) ── */
+  #caixasAudio { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 10px; }
+  .cxAudio { background: var(--cartao); border: 1px solid var(--borda); border-radius: 10px; padding: 10px 12px; }
+  .cxAudio summary { cursor: pointer; font-size: 13px; font-weight: 600; }
+  .cxAudio summary .conta { color: var(--texto2); font-weight: 400; font-size: 11px; margin-left: 6px; }
+  .cxAudio .acoes { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin: 9px 0 7px; }
+  .cxAudio .tempo { color: var(--erro); font-size: 11px; }
+  .cxAudio .lista { display: flex; flex-wrap: wrap; gap: 5px; }
+  .cxAudio .vazio { color: var(--texto2); font-size: 11px; font-style: italic; }
+  .ficha { display: inline-flex; border: 1px solid var(--borda); border-radius: 6px; overflow: hidden; }
+  .ficha button { background: transparent; color: var(--texto2); border: 0;
+    padding: 3px 8px; font-size: 11px; font-weight: 600; }
+  .ficha button:hover { color: var(--texto); background: #1f2630; }
+  .ficha.tocando { border-color: var(--ok); }
+  .ficha.tocando button:first-child { color: var(--ok); }
+  .ficha .x:hover { color: var(--erro); }
+  #vozViva { font-size: 12px; padding: 3px 10px; border-radius: 20px;
+    border: 1px solid var(--borda); color: var(--texto2); }
+  #vozViva.viva { color: var(--ok); border-color: var(--ok); }
+  /* ── prévia do balão do nome ── */
+  /* Fundo quadriculado: o balão pode ficar quase transparente, e sobre um
+     fundo liso não dava pra ver O QUANTO ele está transparente. */
+  #previaRotulo { display: flex; align-items: center; justify-content: center;
+    gap: 18px; flex-wrap: wrap; padding: 22px 16px; border-radius: 10px;
+    background-color: #2a3441;
+    background-image:
+      linear-gradient(45deg, #222a35 25%, transparent 25%, transparent 75%, #222a35 75%),
+      linear-gradient(45deg, #222a35 25%, transparent 25%, transparent 75%, #222a35 75%);
+    background-size: 22px 22px; background-position: 0 0, 11px 11px; }
+  .balaoPrevia { border-radius: 12px; padding: 7px 14px; text-align: center;
+    line-height: 1.2; min-width: 130px; }
+  .balaoPrevia .l1 { font-size: 17px; font-weight: 800; }
+  .balaoPrevia .l2 { font-size: 15px; }
+  .previaNota { color: var(--texto2); font-size: 11px; text-align: center; margin-top: 8px; }
+  /* ── testes rápidos (simulação) ── */
+  .simular { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 8px; }
+  .simular button { background: var(--cartao); color: var(--texto); border: 1px solid var(--borda); }
+  .simular input[type=text], .simular input[type=number] {
+    padding: 8px 10px; border-radius: 8px; border: 1px solid var(--borda);
+    background: var(--fundo); color: var(--texto); }
+  #simIdentidade { font-size: 12px; color: var(--texto2); }
+  .buscaSim { position: relative; max-width: 420px; }
+  .buscaSim input[type=text] { width: 100%; padding: 10px 12px; font-size: 14px; }
+  #resultadosSim { position: absolute; top: 100%; left: 0; right: 0; z-index: 10;
+    background: var(--cartao); border: 1px solid var(--borda); border-radius: 10px;
+    max-height: 300px; overflow-y: auto; display: none; margin-top: 4px; }
+  #resultadosSim .item { display: flex; align-items: center; gap: 10px; padding: 7px 12px; cursor: pointer; }
+  #resultadosSim .item:hover { background: #1f2630; }
+  #resultadosSim img { width: 30px; height: 30px; object-fit: contain; border-radius: 6px; background: #0a0d12; }
+  #resultadosSim .m { margin-left: auto; color: var(--moeda); font-weight: 700; font-size: 12px; }
+
+  /* A faixa do topo, avisando qual modo está NO AR.
+
+     Este painel é o da multidão; se o avaliador estiver no ar, mexer aqui
+     não muda nada na tela e o streamer fica achando que o painel quebrou.
+     A faixa é o que impede esse mal-entendido. */
+  #faixaModo { position: sticky; top: 0; z-index: 40; margin: -4px 0 14px;
+    padding: 9px 14px; border-radius: 10px; font-size: 13px; font-weight: 700;
+    border: 1px solid var(--borda); background: #16202c; color: #79c0ff; }
+  #faixaModo.outro { background: #2a2312; color: #ffd65c; }
+  #faixaModo span { font-weight: 400; opacity: .8; }
+  #faixaModo a { color: inherit; }
+</style>
+</head>
+<body>
+  <h1>🕺 Painel da Live — Avatares no Palco</h1>
+  <div class="sub">Mexa nos números e clique <b>Salvar</b>: o jogo obedece em segundos, no meio da live, sem reiniciar nada.
+    &nbsp;·&nbsp; <a href="/musicas" target="_blank" style="color:var(--acento);text-decoration:none">🎵 Músicas &amp; Danças ↗</a></div>
+
+  <div class="cartao" id="caixaLive" style="--faixa:#ff3d9a; margin-bottom:14px" hidden>
+    <div class="cab"><div>
+      <div class="tit">🔴 A sua live</div>
+      <div class="desc">Digite o seu @ do TikTok e clique <b>Conectar</b>. É o que
+      liga o chat da sua live neste jogo — comentários, presentes, seguidores.</div>
+    </div></div>
+    <div class="campos">
+      <label>o seu @ do TikTok
+        <input type="text" id="liveUser" placeholder="@seucanal" autocomplete="off" spellcheck="false"></label>
+      <div style="display:flex; gap:8px; align-items:flex-end">
+        <button id="liveConectar">🔴 Conectar</button>
+        <button id="liveDesconectar" class="secundario" hidden>⏹️ Desconectar</button>
+      </div>
+    </div>
+    <div class="desc" id="liveEstado" style="margin-top:8px">conferindo…</div>
+
+    <div class="console-erros" id="consoleErros" hidden>
+      <div class="console-cab">
+        <span class="console-tit">⚠️ <span id="consoleQuantos">0</span> erro(s) desde que abriu</span>
+        <span class="console-botoes">
+          <button type="button" class="mini" id="consoleCopiar">📋 Copiar</button>
+          <button type="button" class="mini" id="consoleLimpar">🧹 Limpar</button>
+        </span>
+      </div>
+      <div class="console-corpo" id="consoleLinhas"></div>
+      <div class="console-pe">Copie e mande no Discord — é o que o suporte precisa para achar o problema.</div>
+    </div>
+  </div>
+
+  <div class="barra">
+    <button id="salvar">💾 Salvar</button>
+    <button id="recarregar" class="secundario">↩️ Recarregar</button>
+    <button id="padrao" class="secundario">🧹 Restaurar padrão</button>
+    <button id="exportarPreset" class="secundario" title="Baixa um arquivo com toda a configuração de agora">⬇️ Exportar preset</button>
+    <button id="importarPreset" class="secundario" title="Aplica um preset por cima do que já está salvo">⬆️ Importar preset</button>
+    <input type="file" id="arquivoPreset" accept=".json,application/json" hidden>
+    <span id="estado">carregando…</span>
+  </div>
+
+  <div id="faixaModo"></div>
+
+  <h2>🎬 Câmera</h2>
+  <div class="cartao" style="--faixa:#58a6ff">
+    <div class="cab"><div>
+      <div class="tit">O jeito de filmar</div>
+      <div class="desc">A câmera segue quem <b>acabou de chegar</b>. O tempo de tela de cada um
+      vem do <b>tempo de tela</b> do gatilho dele (mais abaixo), não daqui — aqui é só o
+      movimento. Os limites já são seguros: não dá pra digitar um valor que trave o jogo.</div>
+    </div></div>
+    <div class="campos">
+      <label>suavidade — segundos até chegar no alvo
+        <input type="number" data-caminho="camera.suavidade" min="0.05" max="3" step="0.05"></label>
+      <label>cooldown — espera pra trocar de alvo (s)
+        <input type="number" data-caminho="camera.cooldown_s" min="0" max="10" step="0.1"></label>
+      <label>distância do close (× altura)
+        <input type="number" data-caminho="camera.distancia" min="1" max="12" step="0.1"></label>
+      <label>altura da câmera (× altura)
+        <input type="number" data-caminho="camera.altura" min="-1" max="4" step="0.05"></label>
+      <label>órbita da cinemática (graus)
+        <input type="number" data-caminho="camera.orbita_graus" min="0" max="360" step="5"></label>
+      <label>aproximação na cinemática (0–1)
+        <input type="number" data-caminho="camera.aproxima" min="0.2" max="1" step="0.02"></label>
+    </div>
+  </div>
+
+  <h2>🎛️ Modo da live</h2>
+  <div class="cartao" style="--faixa:#d29922">
+    <div class="cab"><div>
+      <div class="tit">Qual jogo está no ar</div>
+      <div class="desc">Um de cada vez. A troca vale na hora — o jogo aplica em até 3s, sem reiniciar nada.</div>
+    </div></div>
+    <div class="campos">
+      <label class="largo">modo
+        <select data-caminho="geral.modo" data-texto="1">
+          <option value="multidao">👥 Multidão — todo mundo dança na grade</option>
+          <option value="avaliador">⭐ Avaliador de skin — nota, MOGGER e MOGGED</option>
+        </select></label>
+      <div class="largo" style="font-size:12px;opacity:.75">
+        <b>Cada modo tem o seu painel.</b> Este é o da multidão. O do avaliador
+        (nota, dança, música, pódio) é outra página — deixe as duas abertas em abas
+        separadas e mexa na do modo que está no ar.
+        <a href="/avaliador.html" target="_blank">abrir o painel do Avaliador ↗</a>
+      </div>
+    </div>
+  </div>
+
+  <h2>⚙️ Gerais</h2>
+  <div class="cartao" style="--faixa:#8b949e">
+    <div class="campos">
+      <label>avatares por combo (x100 rosas = 100 bonecos)
+        <input type="number" data-caminho="geral.combo_max" min="1" max="300" step="1"></label>
+      <label>teto da fila de espera
+        <input type="number" data-caminho="geral.fila_max" min="5" max="500" step="5"></label>
+
+    </div>
+  </div>
+
+  <h2>🧪 Testes rápidos</h2>
+  <div class="cartao" style="--faixa:#3fb950">
+    <div class="cab"><div>
+      <div class="tit">Simular direto no jogo</div>
+      <div class="desc">Manda o evento pro relay <b>exatamente como a ponte mandaria</b> numa live de
+      verdade — o Roblox em Play recebe e spawna igual. Preencha um nick do Roblox pra simular com a
+      skin real dessa pessoa (fica salva no placar dela); em branco, spawna um boneco genérico.</div>
+    </div></div>
+    <div class="simular">
+      <input type="text" id="simNick" placeholder="nick do Roblox (opcional)">
+      <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--texto2)">×combo
+        <input type="number" id="simCombo" min="1" max="300" step="1" value="1" style="width:64px"></label>
+      <span id="simIdentidade">simulando como: 🧪 genérico</span>
+    </div>
+    <div class="simular">
+      <button data-simular="comentario">💬 Comentário</button>
+      <button data-simular="curtida">❤️ Curtida</button>
+      <button data-simular="seguiu">➕ Seguiu</button>
+      <button data-simular="compartilhou">📤 Compartilhou</button>
+    </div>
+    <div class="buscaSim">
+      <input type="text" id="buscarSim" placeholder="🔍 Simular um presente… (ex.: rose, galaxy, lion)">
+      <div id="resultadosSim"></div>
+    </div>
+  </div>
+
+  <h2>🎞️ Formação da multidão</h2>
+  <div class="cartao" style="--faixa:#3fb950">
+    <div class="cab"><div><div class="tit">Dois modos prontos — escolha um</div>
+      <div class="desc">A <b>fileira</b> e o <b>enquadramento</b> andam juntos: uma fila de 5 pede
+      câmera mais alta e mais profundidade que uma de 10. Por isso cada modo carrega o conjunto
+      inteiro — trocar de modo troca tudo de uma vez, sem uma configuração brigar com a outra.
+      <br><b>Trocar o modo reinicia a formação</b> (plano geral + limpeza): a régua nova não pode
+      valer no meio de uma grade já plantada, senão a metade antiga fica torta.</div></div></div>
+    <div class="campos">
+      <label>modo no ar
+        <select data-caminho="formacao.modo" data-texto="1">
+          <option value="largo">🟦 Largo — fileira de 10</option>
+          <option value="corredor">🟩 Corredor — fileira de 5 (câmera de cima)</option>
+        </select></label>
+      <label>total de avatares no ciclo
+        <input type="number" data-caminho="formacao.total" min="4" max="400" step="10"></label>
+    </div>
+
+    <div class="cab" style="margin:14px 0 6px"><div><div class="tit">🟦 Largo (fileira de 10)</div>
+      <div class="desc">A multidão se espalha pros lados. É o visual de sempre.</div></div></div>
+    <div class="campos">
+      <label>bonecos por fileira
+        <input type="number" data-caminho="formacao.largo.por_fila" min="2" max="20" step="1"></label>
+      <label>largura enquadrada (studs)
+        <input type="number" data-caminho="formacao.largo.cam_largura" min="6" max="120" step="1"></label>
+      <label>profundidade (filas atrás)
+        <input type="number" data-caminho="formacao.largo.cam_profundidade" min="4" max="200" step="2"></label>
+      <label>altura da câmera
+        <input type="number" data-caminho="formacao.largo.cam_altura" min="0" max="60" step="1"></label>
+      <label>o quanto ocupa o quadro (0–1)
+        <input type="number" data-caminho="formacao.largo.cam_enquadramento" min="0.3" max="1" step="0.05"></label>
+    </div>
+
+    <div class="cab" style="margin:14px 0 6px"><div><div class="tit">🟩 Corredor (fileira de 5)</div>
+      <div class="desc">A grade fica estreita e COMPRIDA: quem chega aparece na frente e a multidão
+      se estende pra trás. A câmera sobe pra pegar os dois.</div></div></div>
+    <div class="campos">
+      <label>bonecos por fileira
+        <input type="number" data-caminho="formacao.corredor.por_fila" min="2" max="20" step="1"></label>
+      <label>largura enquadrada (studs)
+        <input type="number" data-caminho="formacao.corredor.cam_largura" min="6" max="120" step="1"></label>
+      <label>profundidade (filas atrás)
+        <input type="number" data-caminho="formacao.corredor.cam_profundidade" min="4" max="200" step="2"></label>
+      <label>altura da câmera
+        <input type="number" data-caminho="formacao.corredor.cam_altura" min="0" max="60" step="1"></label>
+      <label>o quanto ocupa o quadro (0–1)
+        <input type="number" data-caminho="formacao.corredor.cam_enquadramento" min="0.3" max="1" step="0.05"></label>
+    </div>
+  </div>
+
+  <h2>💭 Balão do nome</h2>
+  <div class="cartao" style="--faixa:#d2a8ff">
+    <div class="cab"><div>
+      <div class="tit">A cara da sua live</div>
+      <div class="desc">O balão em cima da cabeça de cada boneco — é o que mais aparece na tela
+      (são até 100 ao mesmo tempo). Mexa aqui e <b>Salvar</b>: muda na hora, inclusive nos bonecos
+      que já estão dançando, sem esperar a formação recomeçar.
+      <br><b>Legibilidade primeiro:</b> o texto precisa ser lido de longe no vídeo. Cor clara no
+      texto + balão escuro é o que funciona — a prévia abaixo mostra como fica de verdade.</div>
+    </div></div>
+
+    <div id="previaRotulo">
+      <div class="balaoPrevia" id="balaoPrevia">
+        <div class="l1" id="previaNick">SeuNickRoblox</div>
+        <div class="l2" id="previaArroba">@seu.fã.do.tiktok</div>
+      </div>
+    </div>
+    <div class="previaNota">prévia aproximada — no Roblox a fonte é a de verdade, aqui é a mais parecida que o navegador tem</div>
+
+    <div class="campos" style="margin-top:12px">
+      <label>fonte do nome
+        <select data-caminho="rotulo.fonte" data-texto="1">
+          <option value="gotham">Moderna — Gotham (padrão)</option>
+          <option value="sourcesans">Clássica do Roblox — Source Sans</option>
+          <option value="bangers">Quadrinhos — Bangers</option>
+          <option value="luckiestguy">Desenho animado — Luckiest Guy</option>
+          <option value="permanentmarker">Marcador — Permanent Marker</option>
+          <option value="fredokaone">Redondinha — Fredoka One</option>
+          <option value="oswald">Estreita e alta — Oswald</option>
+          <option value="michroma">Futurista — Michroma</option>
+          <option value="denkone">Neon — Denk One</option>
+          <option value="creepster">Terror — Creepster</option>
+          <option value="indieflower">Manuscrita — Indie Flower</option>
+          <option value="merriweather">Séria, com serifa — Merriweather</option>
+        </select></label>
+      <label>cor do balão
+        <input type="color" data-caminho="rotulo.cor_fundo" data-cor="1"></label>
+      <label>transparência do balão (0 = sólido)
+        <input type="number" data-caminho="rotulo.transparencia" min="0" max="0.85" step="0.05"></label>
+      <label>cor do nick do Roblox (linha de cima)
+        <input type="color" data-caminho="rotulo.cor_nick" data-cor="1"></label>
+      <label>cor do @ do TikTok (linha de baixo)
+        <input type="color" data-caminho="rotulo.cor_arroba" data-cor="1"></label>
+    </div>
+
+    <label class="chave" style="margin-top:12px">
+      <input type="checkbox" data-bool="rotulo.cor_do_presente"><span></span>
+      usar a <b>cor do presente</b> no balão
+    </label>
+    <div class="desc" style="margin-top:6px">Ligado, cada balão fica da cor do presente que trouxe
+    a pessoa (a mesma da aura): rosa fica rosa, galáxia fica roxa — a multidão vira um mosaico do
+    que foi enviado. A cor entra <b>escurecida</b> de propósito, senão o texto some em cima dela.
+    Quem chega <b>sem cor própria</b> (comentário, e todo gatilho com a cor no branco) continua
+    com o balão escolhido acima.</div>
+  </div>
+
+  <h2>💬 O que cada participação rende</h2>
+  <div class="grade" id="acoes"></div>
+
+  <h2>🎁 Presentes com gatilho próprio</h2>
+  <div class="dica" style="margin:0 0 12px">🕺 A <b>dança que cada presente liga</b> vale nos
+    <b>dois modos</b> — aqui na multidão ela troca a dança dos cem bonecos de uma vez, que é o
+    efeito mais visível que um presente tem. Configure em
+    <a href="/avaliador.html" target="_blank">painel do Avaliador → O que cada presente faz na tela</a>,
+    e deixe aquela aba aberta: é ela que toca a música da dança.</div>
+  <div class="busca">
+    <input type="text" id="buscar" placeholder="🔍 Buscar presente pra adicionar… (ex.: rose, galaxy, lion)">
+    <div id="resultados"></div>
+  </div>
+  <div class="grade" id="presentes"></div>
+
+  <h2>💰 Rede de segurança por preço</h2>
+  <div class="cartao" style="--faixa:#f0b72f">
+    <div class="cab"><div><div class="desc">Presente que <b>não tem gatilho próprio</b> cai na
+    primeira faixa que couber, da mais cara pra mais barata. Isto existe porque a API do TikTok
+    muda nomes por região e com o tempo — sem as faixas, um presente novo entraria como
+    comentário.</div></div></div>
+    <div id="faixas"></div>
+  </div>
+
+  <h2>🎙️ A Voz da live</h2>
+  <div class="cartao" style="--faixa:#b14bff">
+    <div class="cab"><div>
+      <div class="tit">Narração automática <span id="vozViva">verificando…</span></div>
+      <div class="desc">Quando a câmera <b>para em alguém</b>, o programa <b>voz.py</b> toca uma das
+      gravações da categoria certa — uma coisa pra quem mandou presente (tem aura), outra pra quem
+      só comentou. Ele roda <b>fora do navegador</b> de propósito: o Chrome trava áudio de aba em
+      segundo plano, e era isso que fazia a voz emudecer no meio da live.</div>
+    </div></div>
+    <div class="campos">
+      <label class="largo">saída de áudio — o nome exato do dispositivo (vazio = padrão do Windows)
+        <input type="text" data-caminho="voz.saida_audio" data-texto="1" placeholder="ex.: CABLE Input (VB-Audio Virtual Cable)"></label>
+      <label class="largo">endereço do avatar que mexe a boca (LiveFlow)
+        <input type="text" data-caminho="voz.boca_url" data-texto="1" placeholder="http://127.0.0.1:8791"></label>
+    </div>
+    <div class="cab" style="margin:14px 0 8px"><div>
+      <div class="tit">Anti-inatividade</div>
+      <div class="desc">O TikTok cobra captcha de live parada. Nos silêncios a voz solta uma frase da
+      categoria <b>conversa</b>, e o mouse dá uma deslizadinha de 1px de vez em quando —
+      <b>nunca um clique</b>, que às cegas poderia apertar qualquer coisa na tela. A câmera do jogo
+      também passeia sozinha quando ninguém chega. Deixe o silêncio máximo em <b>0</b> pra desligar
+      as frases soltas.</div>
+    </div></div>
+    <div class="campos">
+      <label>silêncio mínimo antes de falar (s)
+        <input type="number" data-caminho="voz.conversa_min_s" min="0" max="3600" step="5"></label>
+      <label>silêncio máximo (s)
+        <input type="number" data-caminho="voz.conversa_max_s" min="0" max="3600" step="5"></label>
+      <label>mexer o mouse
+        <span class="chave"><input type="checkbox" data-bool="voz.mexer_mouse"><span></span></span></label>
+    </div>
+  </div>
+
+  <div id="caixasAudio" style="margin-top:12px"></div>
+
+  <div class="dica">🎬 Overlay do rank pro OBS:
+    <b id="linkOverlay">http://localhost:8000/overlay.html</b>
+    <button class="mini" id="copiarOverlay">copiar</button>
+  </div>
+
+<script>
+  const TOKEN_LEITURA = "pull-local";
+  const TOKEN_ESCRITA = "push-local";
+
+  /* Embutida no shell (?embutido=1): sem cabeçalho nem caixa da live — o
+     shell já tem os dois, e duplicados confundem mais do que ajudam. */
+  if (new URLSearchParams(location.search).has("embutido")) {
+    document.body.classList.add("embutido");
+  }
+  const $ = (s) => document.querySelector(s);
+  const esc = (t) => String(t == null ? "" : t).replace(/[<>&"]/g, (c) =>
+    ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;" }[c]));
+
+  function avisar(msg, tipo) {
+    const el = $("#estado");
+    el.textContent = msg;
+    el.className = tipo || "";
+  }
+  function sujo() { avisar("alterado — clique em Salvar"); }
+
+  /* ===================================================================
+     O MINI CONSOLE DE ERROS
+
+     O que ele resolve: o erro de verdade acontecia no console do navegador,
+     que ninguém abre no meio de uma live -- e o que chegava no suporte era
+     "não conectou". Aqui a pessoa clica em Copiar e manda uma mensagem com
+     hora, texto do erro e o que o servidor respondeu.
+
+     Pega as TRÊS origens que existem nesta página, porque uma sozinha deixa
+     buraco:
+
+       1. erro de JavaScript e promessa recusada (a página quebrando);
+       2. toda resposta de rede que não deu certo -- inclusive a que responde
+          200 com `{ok:false}`, que é o caso mais comum aqui e o único que
+          NÃO aparece no console do navegador;
+       3. o que a própria tela já mostra em vermelho.
+
+     Guarda no máximo 50: é um painel de live, e memória que só cresce numa
+     página aberta seis horas vira travamento.
+     =================================================================== */
+  const ERROS = [];
+  const MAX_ERROS = 50;
+
+  function anotarErro(texto) {
+    const hora = new Date().toLocaleTimeString('pt-BR', { hour12: false });
+    ERROS.push({ hora, texto: String(texto ?? '').slice(0, 600) });
+    if (ERROS.length > MAX_ERROS) ERROS.shift();
+    desenharConsole();
+  }
+
+  function desenharConsole() {
+    const caixa = $("#consoleErros");
+    if (!caixa) return;
+    // Só aparece quando existe erro: um console vazio sempre aberto é ruído
+    // num painel que a pessoa usa no meio da transmissão.
+    caixa.hidden = ERROS.length === 0;
+    $("#consoleQuantos").textContent = String(ERROS.length);
+    const corpo = $("#consoleLinhas");
+    corpo.innerHTML = ERROS.map(
+      (e) => `<div class="console-linha"><span class="console-hora">[${esc(e.hora)}]</span> ${esc(e.texto)}</div>`,
+    ).join("");
+    // Rola para o último: o erro que interessa é sempre o que acabou de sair.
+    corpo.scrollTop = corpo.scrollHeight;
+  }
+
+  function textoDoConsole() {
+    return (
+      "RatGames — Avatares da Live\n" +
+      "painel: " + location.href + "\n" +
+      "quando: " + new Date().toISOString() + "\n" +
+      "----------------------------------------\n" +
+      ERROS.map((e) => "[" + e.hora + "] " + e.texto).join("\n")
+    );
+  }
+
+  window.addEventListener("error", (e) => {
+    anotarErro((e.message || "erro") + (e.filename ? ` (${e.filename}:${e.lineno})` : ""));
+  });
+  window.addEventListener("unhandledrejection", (e) => {
+    anotarErro("promessa recusada: " + (e.reason?.message || e.reason || "sem motivo"));
+  });
+
+  /* O fetch envelopado.
+     Resposta 200 com `{ok:false}` é o caso mais comum aqui -- "@ não existe",
+     "live fora do ar" -- e é justamente o que o console do navegador NÃO
+     mostra, porque para ele a requisição deu certo. */
+  const fetchOriginal = window.fetch.bind(window);
+  window.fetch = async (...args) => {
+    const alvo = typeof args[0] === "string" ? args[0] : args[0]?.url ?? "?";
+    try {
+      const r = await fetchOriginal(...args);
+      if (!r.ok) {
+        anotarErro(`${alvo} respondeu ${r.status} ${r.statusText || ""}`.trim());
+        return r;
+      }
+      /* Lê uma CÓPIA: consumir o corpo aqui deixaria quem chamou sem nada
+         para ler, e o painel inteiro pararia de carregar. */
+      r.clone()
+        .json()
+        .then((d) => {
+          if (d && d.ok === false) anotarErro(`${alvo}: ${d.erro || d.detalhe || "resposta ok:false"}`);
+        })
+        .catch(() => {});
+      return r;
+    } catch (erro) {
+      anotarErro(`${alvo} falhou: ${erro.message}`);
+      throw erro;
+    }
+  };
+
+  /* Os campos de um EFEITO. É a MESMA lista pras ações, pros presentes e pras
+     faixas — assim nenhum lugar fica sem um campo que os outros têm. */
+  const CAMPOS_EFEITO = [
+    ["prio", "prioridade na fila", 0, 20, 1],
+    ["escala", "tamanho (0.5–4)", 0.5, 4, 0.1],
+    ["hold", "tempo de tela (s)", 0, 25, 0.1],
+    ["cine", "cinemática (s)", 0, 25, 0.5],
+    ["aura", "aura (0–5)", 0, 5, 1],
+    ["ttl", "vida (s)", 5, 900, 5],
+    ["quebra_tudo", "quebra-tudo (s)", 0, 20, 0.5],
+    ["rajada", "rajada (s)", 0, 60, 1],
+    // A formação INTEIRA troca pra dança especial ("sixseven") por N
+    // segundos e volta sozinha. Ponha em QUALQUER gatilho: comentário,
+    // seguidor ou um presente escolhido.
+    ["anim_geral", "🕺 todos dançam sixseven (s)", 0, 120, 1],
+    // Fora da grade: um gigante ATRÁS de todo mundo, visto de longe.
+    ["colosso", "🗿 colosso gigante (escala)", 0, 40, 1],
+  ];
+  const ICONES = ["", "rosquinha", "oculos", "galaxia"];
+
+  /* MODO AVALIADOR: a dança que o gatilho liga na live inteira.
+     Lista FECHADA e igual à do relay (DANCAS_VALIDAS) e à do jogo (tabela
+     DANCAS no Config.luau) — uma chave inventada aqui falharia calada lá,
+     com a dança simplesmente não trocando no meio da live.
+     Os créditos vão no rótulo porque é uma obrigação assumida com os
+     autores dos emotes, e obrigação escondida é obrigação esquecida. */
+
+  /* A DANÇA de cada gatilho NÃO aparece aqui: ela é do modo avaliador e mora
+     no painel dele. O valor continua salvo — `coletar()` parte da config
+     carregada, então o que este painel não desenha, ele não apaga. */
+  function camposEfeitoHtml(prefixo) {
+    return `
+      <label>cor do nome/aura
+        <input type="color" data-caminho="${prefixo}.cor" data-cor="1"></label>
+      ${CAMPOS_EFEITO.map(([c, rot, min, max, step]) => `
+        <label>${rot}
+          <input type="number" data-caminho="${prefixo}.${c}" min="${min}" max="${max}" step="${step}"></label>`).join("")}
+      <label>balãozinho
+        <select data-caminho="${prefixo}.icone" data-texto="1">
+          ${ICONES.map((i) => `<option value="${i}">${i || "(nenhum)"}</option>`).join("")}
+        </select></label>`;
+  }
+
+  // ── caminhos aninhados ("camera.suavidade") ──
+  function pegar(obj, caminho) {
+    return caminho.split(".").reduce((o, k) => (o == null ? undefined : o[k]), obj);
+  }
+  function por(obj, caminho, valor) {
+    const partes = caminho.split(".");
+    let o = obj;
+    for (const k of partes.slice(0, -1)) o = o[k] ??= {};
+    o[partes.at(-1)] = valor;
+  }
+
+  // ── ações (comentário, curtida, seguiu, compartilhou) ──
+  const ACOES = [
+    ["comentario", "💬 Comentou o nick", "#58a6ff"],
+    ["curtida", "❤️ Curtiu", "#ff3b5c"],
+    ["seguiu", "➕ Seguiu", "#28d17c"],
+    ["compartilhou", "🔁 Compartilhou", "#ff9a1f"],
+  ];
+  $("#acoes").innerHTML = ACOES.map(([chave, titulo, cor]) => `
+    <div class="cartao" style="--faixa:${cor}">
+      <div class="cab">
+        <div><div class="tit">${titulo}</div></div>
+        <div class="direita"><label class="chave">
+          <input type="checkbox" data-ativo="acoes.${chave}"><span></span></label></div>
+      </div>
+      <div class="campos">
+        ${chave === "curtida" ? `<label>a cada quantas curtidas
+          <input type="number" data-caminho="acoes.curtida.a_cada" min="1" max="100000" step="10"></label>` : ""}
+        ${camposEfeitoHtml("acoes." + chave)}
+      </div>
+    </div>`).join("");
+
+  // ── catálogo de presentes ──
+  let catalogo = [];
+  const porNome = new Map();
+  async function carregarCatalogo() {
+    try {
+      catalogo = (await (await fetch("/presentes")).json()).presentes || [];
+    } catch (e) { catalogo = []; }
+    for (const p of catalogo) porNome.set(p.nome, p);
+  }
+  const infoDoCatalogo = (nome) =>
+    porNome.get(nome) || { nome, rotulo: nome, moedas: null, imagem: null };
+
+  const divPresentes = $("#presentes");
+  let trocandoCard = null;
+
+  function atualizarCabecalho(card) {
+    const info = infoDoCatalogo(card.dataset.presente);
+    card.querySelector(".tit").textContent = info.rotulo;
+    card.querySelector(".moedas").textContent = "🪙 " + (info.moedas ?? "?") + " moedas";
+    const img = card.querySelector(".cab img");
+    if (info.imagem) { img.src = info.imagem; img.style.display = ""; }
+    else img.style.display = "none";
+  }
+
+  function cartaoPresente(nome, efeito) {
+    const card = document.createElement("div");
+    card.className = "cartao";
+    card.dataset.presente = nome;
+    card.style.setProperty("--faixa", "#" + (efeito.cor || "888888"));
+    card.innerHTML = `
+      <div class="cab">
+        <img alt="">
+        <div><div class="tit"></div><div class="moedas"></div></div>
+        <div class="direita">
+          <button class="mini" data-trocar="1" title="trocar qual presente dispara este gatilho (mantém os números)">⇄</button>
+          <button class="perigo" data-remover="1" title="tirar o gatilho deste presente">✕</button>
+        </div>
+      </div>
+      <div class="campos">${camposEfeitoHtml("__P__")}</div>`;
+    // O prefixo real só existe depois que o cartão sabe o nome dele.
+    apontarCampos(card, "__P__", "presentes." + nome);
+    atualizarCabecalho(card);
+    divPresentes.appendChild(card);
+    preencherCampos(card, { presentes: { [nome]: efeito } });
+    return card;
+  }
+
+  function apontarCampos(card, de, para) {
+    card.querySelectorAll("[data-caminho]").forEach((el) => {
+      el.dataset.caminho = el.dataset.caminho.replace(de, para);
+    });
+  }
+
+  divPresentes.addEventListener("click", (ev) => {
+    const b = ev.target.closest("button");
+    if (!b) return;
+    const card = b.closest("[data-presente]");
+    if (!card) return;
+    if (b.dataset.remover) { card.remove(); sujo(); return; }
+    if (b.dataset.trocar) {
+      trocandoCard = card;
+      caixaBusca.placeholder = "🔍 Escolha o presente que vai disparar este gatilho…";
+      caixaBusca.focus();
+    }
+  });
+
+  // ── faixas por preço ──
+  function desenharFaixas(faixas) {
+    $("#faixas").innerHTML = faixas.map((f, i) => `
+      <div class="cartao" style="--faixa:#${esc(f.efeito.cor)};margin-top:10px">
+        <div class="cab"><div><div class="tit">a partir de
+          <input type="number" data-caminho="faixas.${i}.min" min="0" max="1000000" step="1"
+                 style="width:110px;display:inline-block"> moedas</div></div></div>
+        <div class="campos">${camposEfeitoHtml("faixas." + i + ".efeito")}</div>
+      </div>`).join("");
+  }
+
+  // ── ler/escrever a config na tela ──
+  function preencherCampos(raiz, cfg) {
+    for (const el of raiz.querySelectorAll("[data-caminho]")) {
+      const v = pegar(cfg, el.dataset.caminho);
+      if (v === undefined) continue;
+      el.value = el.dataset.cor ? "#" + v : v;
+    }
+  }
+
+  /* A PRÉVIA DO BALÃO.
+
+     Aproximada de propósito, e dito na tela: as fontes do Roblox não são
+     web fonts, e o painel roda OFFLINE (baixar de CDN quebraria justamente
+     na hora da live, que é quando ele precisa abrir). Então cada opção
+     aponta pra pilha de fontes locais mais parecida — a ideia é acertar o
+     PESO e o FORMATO (redonda, estreita, manuscrita), não a fonte exata. */
+  const FAMILIAS = {
+    gotham: "'Segoe UI', system-ui, sans-serif",
+    sourcesans: "'Source Sans Pro', Calibri, system-ui, sans-serif",
+    bangers: "'Comic Sans MS', 'Impact', fantasy",
+    luckiestguy: "'Impact', 'Arial Black', fantasy",
+    permanentmarker: "'Segoe Script', 'Comic Sans MS', cursive",
+    fredokaone: "'Trebuchet MS', 'Segoe UI', sans-serif",
+    oswald: "'Haettenschweiler', 'Arial Narrow', 'Impact', sans-serif",
+    michroma: "'Consolas', 'Courier New', monospace",
+    denkone: "'Arial Black', 'Impact', sans-serif",
+    creepster: "'Chiller', 'Papyrus', fantasy",
+    indieflower: "'Ink Free', 'Segoe Script', cursive",
+    merriweather: "'Georgia', 'Times New Roman', serif",
+  };
+
+  /** A cor ficando com 35% do brilho — a MESMA conta do jogo (Avatares.luau
+   *  faz Lerp pro preto em 0.65), pra prévia não prometer uma cor e o
+   *  Roblox mostrar outra. */
+  function escurecer(hex) {
+    const n = parseInt(hex.replace("#", ""), 16);
+    const f = (c) => Math.round(c * 0.35);
+    return `rgb(${f((n >> 16) & 255)},${f((n >> 8) & 255)},${f(n & 255)})`;
+  }
+
+  function atualizarPrevia() {
+    const balao = $("#balaoPrevia");
+    if (!balao) return;
+    const val = (caminho) => {
+      const el = document.querySelector(`[data-caminho="${caminho}"]`);
+      return el ? el.value : "";
+    };
+    const usaPresente = document.querySelector('[data-bool="rotulo.cor_do_presente"]')?.checked;
+
+    // Com "cor do presente" ligado, mostra a cor de um presente REAL (o
+    // ciano do óculos) escurecida — é o caso que o streamer quer conferir.
+    balao.style.background = usaPresente ? escurecer("#27E1FF") : val("rotulo.cor_fundo");
+    balao.style.opacity = String(1 - (Number(val("rotulo.transparencia")) || 0));
+    balao.style.fontFamily = FAMILIAS[val("rotulo.fonte")] || FAMILIAS.gotham;
+    $("#previaNick").style.color = val("rotulo.cor_nick");
+    $("#previaArroba").style.color = val("rotulo.cor_arroba");
+  }
+
+  // Ao vivo, sem precisar salvar: o streamer mexe no seletor e vê na hora.
+  for (const evento of ["input", "change"]) {
+    document.addEventListener(evento, (e) => {
+      if (e.target.closest && e.target.closest("#previaRotulo, .cartao")) atualizarPrevia();
+    });
+  }
+
+  function preencher(cfg) {
+    carregado = cfg; // a base do `coletar()` — ver o comentário lá embaixo
+    divPresentes.innerHTML = "";
+    for (const [nome, efeito] of Object.entries(cfg.presentes || {})) cartaoPresente(nome, efeito);
+    desenharFaixas(cfg.faixas || []);
+    preencherCampos(document, cfg);
+    // Interruptor solto (não é o "ativo" de um cartão): liga/desliga um
+    // booleano da config, como o mexer-o-mouse da voz.
+    for (const el of document.querySelectorAll("[data-bool]")) {
+      el.checked = !!pegar(cfg, el.dataset.bool);
+    }
+    montarCaixasAudio(Object.keys(cfg.presentes || {}));
+    for (const el of document.querySelectorAll("[data-ativo]")) {
+      const acao = pegar(cfg, el.dataset.ativo);
+      el.checked = !!(acao && acao.ativo);
+      el.closest(".cartao").classList.toggle("inativo", !el.checked);
+    }
+    atualizarPrevia();
+    /* Preencher um <select> por código NÃO dispara "change", então o preset
+       precisa ser reavaliado à mão aqui. Sem isto a faixa abriria sempre
+       dizendo "multidão no ar", mesmo com a live no avaliador. */
+    avisarModo();
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════════
+     SALVAR SEM PISAR NO OUTRO PAINEL
+     ═══════════════════════════════════════════════════════════════════════
+
+     Este painel é o da MULTIDÃO; o do avaliador é outra página, e os dois
+     gravam na MESMA config. Se `coletar()` montasse o objeto do zero a
+     partir do que está na tela, salvar aqui apagaria tudo que só existe lá
+     (a dança no ar, o pódio, a dança de cada presente) — e o pior: sem erro
+     nenhum, porque o relay simplesmente devolveria os padrões.
+
+     Então parte-se da ÚLTIMA CONFIG CARREGADA e escreve-se por cima só o
+     que esta página conhece. O que ela não desenha, ela não toca.
+
+     Os presentes precisam de cuidado extra: tirar um gatilho no painel tem
+     que de fato removê-lo, então a lista é REFEITA a partir dos cartões —
+     mas cada cartão começa do efeito antigo daquele presente, pra não
+     perder os campos que só o outro painel edita. */
+  let carregado = {};
+
+  function coletar() {
+    const cfg = JSON.parse(JSON.stringify(carregado));
+    cfg.presentes = {};
+    cfg.faixas = {};
+
+    for (const card of divPresentes.querySelectorAll("[data-presente]")) {
+      cfg.presentes[card.dataset.presente] =
+        JSON.parse(JSON.stringify((carregado.presentes || {})[card.dataset.presente] || {}));
+    }
+
+    for (const el of document.querySelectorAll("[data-caminho]")) {
+      // data-texto = campo que é STRING (o balãozinho). Sem isto o Number()
+      // viraria NaN e o campo se perderia ao salvar.
+      const v = el.dataset.cor ? el.value.replace("#", "").toUpperCase()
+              : el.dataset.texto ? el.value
+              : Number(el.value);
+      por(cfg, el.dataset.caminho, v);
+    }
+    for (const el of document.querySelectorAll("[data-ativo]")) {
+      por(cfg, el.dataset.ativo + ".ativo", el.checked);
+    }
+    for (const el of document.querySelectorAll("[data-bool]")) {
+      por(cfg, el.dataset.bool, el.checked);
+    }
+    // `faixas` nasce objeto ({"0":…,"1":…}) porque o caminho é por índice;
+    // o relay espera lista.
+    cfg.faixas = Object.values(cfg.faixas || {});
+    return cfg;
+  }
+
+  async function carregar() {
+    avisar("carregando…");
+    try {
+      const r = await fetch("/config", { headers: { "x-token": TOKEN_LEITURA } });
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      preencher(await r.json());
+      avisar("configuração carregada ✓", "ok");
+    } catch (e) {
+      // Este catch também pega erro de DESENHO, e aí dizer "não falei com o
+      // relay" mentiria: o console leva o erro de verdade.
+      console.error("falha ao carregar/desenhar o painel:", e);
+      avisar("falhou: " + e.message, "erro");
+    }
+  }
+
+  async function salvar(corpo) {
+    avisar("salvando…");
+    try {
+      const r = await fetch("/config", {
+        method: "POST",
+        headers: { "x-token": TOKEN_ESCRITA, "content-type": "application/json" },
+        body: JSON.stringify(corpo),
+      });
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      preencher((await r.json()).config);
+      avisar("salvo ✓ — o jogo já está obedecendo", "ok");
+    } catch (e) {
+      avisar("não consegui salvar (" + e.message + ")", "erro");
+    }
+  }
+
+  /**
+   * ══════════════════════════════════════════════════════════════════════
+   * RELÊ A CONFIG ANTES DE SALVAR. (13/08/2026)
+   * ══════════════════════════════════════════════════════════════════════
+   *
+   * Relatado pelo dono: "muita gente reclamando que quando troca a animação
+   * de dança no painel avaliador, clica em salvar, fecha o jogo e quando
+   * volta não tá salvo, volta para o padrão".
+   *
+   * Não era o salvar que falhava -- era ESTE painel desfazendo o do outro.
+   *
+   * Cada painel guarda, ao abrir, um RETRATO da config inteira (`carregado`),
+   * e ao salvar manda esse retrato de volta com os seus campos por cima. Só
+   * que os dois painéis gravam na MESMA config: quem salvar por último apaga
+   * o que o outro salvou no meio-tempo, mesmo sem ninguém ter tocado naquele
+   * campo.
+   *
+   * E o launcher CRIA essa situação sozinho: ao abrir o jogo ele já abre o
+   * painel da multidão numa janela, e o streamer abre o do avaliador para
+   * mexer na dança. Os dois ficam na tela.
+   *
+   * Agora a base é relida na hora de salvar. Os campos DESTA página continuam
+   * mandando -- muda só o que está por baixo deles.
+   *
+   * `preencher` NÃO é chamado aqui de propósito: repintar a tela agora
+   * apagaria o que a pessoa acabou de digitar e ainda não salvou.
+   */
+  async function salvarComBaseFresca() {
+    try {
+      const r = await fetch("/config", { headers: { "x-token": TOKEN_LEITURA } });
+      if (r.ok) carregado = await r.json();
+    } catch {
+      /* Relay fora do ar: segue com o retrato antigo. O salvar logo abaixo
+         vai falhar e avisar -- e é melhor tentar do que recusar. */
+    }
+    return salvar(coletar());
+  }
+
+  $("#salvar").onclick = salvarComBaseFresca;
+  $("#recarregar").onclick = carregar;
+  const PRESET_QUAL = "multidao";
+  /* ══════════════════════════════════════════════════════════════════════
+     PRESETS: EXPORTAR E IMPORTAR
+     ══════════════════════════════════════════════════════════════════════
+
+     Pedido do dono em 13/08/2026: poder levar a configuração de uma máquina
+     para outra "sem perder as que já tão salva da rapazeada".
+
+     Por isso IMPORTAR NÃO SUBSTITUI: manda em `/config/mesclar`, no relay,
+     que aplica o preset POR CIMA do que já existe -- o que o arquivo não
+     menciona continua como estava. O `POST /config` normal apagaria o resto
+     de volta ao padrão de fábrica, e a pessoa só descobriria na live
+     seguinte, sem ligar uma coisa à outra.
+
+     E antes de aplicar, o painel BAIXA SOZINHO um arquivo com a configuração
+     de agora. É a rede: mesmo que o preset importado seja um desastre,
+     desfazer é importar o arquivo que acabou de cair na pasta de downloads.
+
+     O mesmo bloco existe no outro painel. São dois arquivos de propósito
+     (multidão e avaliador são telas diferentes), mas a REGRA é uma só, e ela
+     mora no relay justamente para não divergir. */
+  const PRESET_MARCA = "ratgames-preset";
+
+  function baixarArquivo(nome, dados) {
+    const url = URL.createObjectURL(
+      new Blob([JSON.stringify(dados, null, 2)], { type: "application/json" }),
+    );
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = nome;
+    a.click();
+    // Sem o revoke o blob fica na memória da aba a live inteira.
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+  }
+
+  /* Data no nome do arquivo: quem exporta três vezes num dia precisa saber
+     qual é qual sem abrir os três. */
+  function carimboDeAgora() {
+    const d = new Date();
+    const dois = (n) => String(n).padStart(2, "0");
+    return (
+      d.getFullYear() + "-" + dois(d.getMonth() + 1) + "-" + dois(d.getDate()) +
+      "-" + dois(d.getHours()) + dois(d.getMinutes())
+    );
+  }
+
+  async function lerConfigAgora() {
+    const r = await fetch("/config", { headers: { "x-token": TOKEN_LEITURA } });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    return await r.json();
+  }
+
+  function empacotar(config) {
+    return {
+      marca: PRESET_MARCA,
+      painel: PRESET_QUAL,
+      versao: 1,
+      quando: new Date().toISOString(),
+      config,
+    };
+  }
+
+  async function exportarPreset() {
+    avisar("exportando…");
+    try {
+      const config = await lerConfigAgora();
+      baixarArquivo("ratgames-" + PRESET_QUAL + "-" + carimboDeAgora() + ".json", empacotar(config));
+      avisar("preset exportado ✓ — está na sua pasta de downloads", "ok");
+    } catch (e) {
+      avisar("falhou: " + e.message, "erro");
+    }
+  }
+
+  async function importarPreset(arquivo) {
+    avisar("importando…");
+    try {
+      let pacote;
+      try {
+        pacote = JSON.parse(await arquivo.text());
+      } catch {
+        throw new Error("esse arquivo não é um JSON válido");
+      }
+      /* Aceita o pacote com marca OU a config crua: quem editou o arquivo à
+         mão e apagou o cabeçalho não pode ficar de fora por causa disso. */
+      const config = pacote && pacote.marca === PRESET_MARCA ? pacote.config : pacote;
+      if (!config || typeof config !== "object" || Array.isArray(config)) {
+        throw new Error("não parece um preset do RatGames");
+      }
+
+      // A REDE, antes de mexer: o que está valendo agora vai para o disco.
+      try {
+        baixarArquivo(
+          "ratgames-" + PRESET_QUAL + "-ANTES-DE-IMPORTAR-" + carimboDeAgora() + ".json",
+          empacotar(await lerConfigAgora()),
+        );
+      } catch (e) {
+        console.warn("não consegui guardar o backup antes de importar:", e);
+      }
+
+      const r = await fetch("/config/mesclar", {
+        method: "POST",
+        headers: { "x-token": TOKEN_ESCRITA, "content-type": "application/json" },
+        body: JSON.stringify(config),
+      });
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      preencher((await r.json()).config);
+      avisar("preset importado ✓ — o que ele não menciona continuou como estava", "ok");
+    } catch (e) {
+      avisar("falhou: " + e.message, "erro");
+    }
+  }
+
+  $("#exportarPreset").addEventListener("click", exportarPreset);
+  $("#importarPreset").addEventListener("click", () => $("#arquivoPreset").click());
+  $("#arquivoPreset").addEventListener("change", (e) => {
+    const arq = e.target.files && e.target.files[0];
+    // Zera o valor para escolher o MESMO arquivo duas vezes seguidas ainda
+    // disparar o `change` -- senão a segunda tentativa não faz nada.
+    e.target.value = "";
+    if (arq) importarPreset(arq);
+  });
+
+  $("#padrao").onclick = () => {
+    if (confirm("Voltar TUDO pro padrão de fábrica? Sua configuração atual se perde.")) salvar({});
+  };
+  $("#copiarOverlay").onclick = () => {
+    navigator.clipboard.writeText($("#linkOverlay").textContent).then(
+      () => avisar("link copiado ✓", "ok"),
+      () => avisar("não consegui copiar", "erro"));
+  };
+
+  document.addEventListener("input", (e) => { if (e.target.closest("[data-caminho]")) sujo(); });
+  document.addEventListener("change", (e) => {
+    const el = e.target.closest("[data-ativo]");
+    if (!el) return;
+    el.closest(".cartao").classList.toggle("inativo", !el.checked);
+    sujo();
+  });
+
+  // ── busca de presente ──
+  const caixaBusca = $("#buscar");
+  const divResultados = $("#resultados");
+
+  /* Sugere números pelo PREÇO, pro cartão já nascer plausível em vez de tudo
+     zerado (que faria um presente caro entrar igual a um comentário). */
+  function efeitoSugerido(moedas) {
+    const m = Number(moedas) || 0;
+    const base = { prio: 2, escala: 1, ttl: 90, hold: 1, cine: 0, quebra_tudo: 0, rajada: 0, cor: "FF9EC4", aura: 1, icone: "" };
+    if (m >= 1000) return { prio: 6, escala: 3.2, ttl: 300, hold: 9, cine: 9, quebra_tudo: 0, rajada: 30, cor: "B14BFF", aura: 5, icone: "galaxia" };
+    if (m >= 200) return { prio: 5, escala: 4, ttl: 300, hold: 16, cine: 4, quebra_tudo: 12, rajada: 0, cor: "27E1FF", aura: 4, icone: "oculos" };
+    if (m >= 30) return { prio: 4, escala: 2.8, ttl: 240, hold: 5.5, cine: 5.5, quebra_tudo: 0, rajada: 0, cor: "FFA321", aura: 3, icone: "rosquinha" };
+    if (m >= 10) return { prio: 3, escala: 1.8, ttl: 150, hold: 4, cine: 4, quebra_tudo: 0, rajada: 0, cor: "FF2D6F", aura: 2, icone: "" };
+    return base;
+  }
+
+  function renderBusca() {
+    const termo = caixaBusca.value.trim().toLowerCase();
+    if (!termo) { divResultados.style.display = "none"; return; }
+    const jaTem = new Set([...divPresentes.children].map((c) => c.dataset.presente));
+    const achados = catalogo
+      .filter((p) => p.nome.includes(termo) || p.rotulo.toLowerCase().includes(termo))
+      .slice(0, 30);
+    divResultados.innerHTML = achados.length
+      ? achados.map((p) => `
+          <div class="item" data-nome="${esc(p.nome)}">
+            ${p.imagem ? `<img src="${p.imagem}" loading="lazy" alt="">` : `<span style="width:34px"></span>`}
+            <span>${esc(p.rotulo)}</span>
+            ${jaTem.has(p.nome) ? `<span class="ja">já tem gatilho</span>` : ""}
+            <span class="m">🪙 ${p.moedas ?? "?"}</span>
+          </div>`).join("")
+      : `<div class="item">nenhum presente com “${esc(termo)}”</div>`;
+    divResultados.style.display = "block";
+    divResultados.querySelectorAll(".item[data-nome]").forEach((el) => {
+      el.onclick = () => {
+        const nome = el.dataset.nome;
+        const existente = divPresentes.querySelector(`[data-presente="${CSS.escape(nome)}"]`);
+        if (trocandoCard) {
+          if (existente && existente !== trocandoCard) {
+            avisar("esse presente já tem um gatilho próprio", "erro");
+          } else {
+            // Re-aponta o cartão MANTENDO os números — é o que o ⇄ promete.
+            const antigo = trocandoCard.dataset.presente;
+            trocandoCard.dataset.presente = nome;
+            apontarCampos(trocandoCard, "presentes." + antigo, "presentes." + nome);
+            atualizarCabecalho(trocandoCard);
+            sujo();
+          }
+          trocandoCard = null;
+          caixaBusca.placeholder = "🔍 Buscar presente pra adicionar…";
+        } else if (existente) {
+          existente.scrollIntoView({ behavior: "smooth", block: "center" });
+        } else {
+          cartaoPresente(nome, efeitoSugerido(infoDoCatalogo(nome).moedas));
+          sujo();
+        }
+        caixaBusca.value = "";
+        divResultados.style.display = "none";
+      };
+    });
+  }
+  caixaBusca.addEventListener("input", renderBusca);
+  caixaBusca.addEventListener("focus", renderBusca);
+  document.addEventListener("click", (e) => {
+    if (!e.target.closest(".busca")) divResultados.style.display = "none";
+  });
+
+  /* ─────────────────── TESTES RÁPIDOS: simular direto no jogo ───────────────────
+     Manda pro relay o MESMO formato de evento que a ponte manda numa live de
+     verdade (prio/escala/cor/aura já calculados pelo /simular do relay, com
+     a config atual salva) — não existe atalho nem "modo teste" no Roblox: o
+     jogo em Play recebe pelo /pull de sempre e reage igual. */
+
+  async function simular(corpo, rotulo) {
+    try {
+      const r = await fetch("/simular", {
+        method: "POST",
+        headers: { "content-type": "application/json", "x-token": TOKEN_ESCRITA },
+        body: JSON.stringify(corpo),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.erro || ("HTTP " + r.status));
+      avisar(`🧪 ${rotulo} — precisa do jogo em Play pra aparecer`, "ok");
+    } catch (e) {
+      avisar("falha ao simular (" + e.message + ")", "erro");
+    }
+  }
+
+  // ── identidade: nick REAL do Roblox (opcional) ──
+  // Resolvido uma vez e cacheado; toda simulação seguinte sai com esse nome
+  // + roblox_id, então o placar/pódio acumulam na pessoa certa em vez de
+  // todo teste virar um "🧪 genérico" empilhado.
+  let identidadeSim = null; // { nick, roblox_id }
+  const lblIdentSim = $("#simIdentidade");
+  async function resolverIdentidadeSim() {
+    const nick = $("#simNick").value.trim();
+    if (!nick) {
+      identidadeSim = null;
+      lblIdentSim.textContent = "simulando como: 🧪 genérico";
+      return;
+    }
+    if (identidadeSim && identidadeSim.nick === nick) return; // cache
+    lblIdentSim.textContent = `resolvendo "${nick}"…`;
+    try {
+      const r = await fetch("/resolver?nick=" + encodeURIComponent(nick),
+        { headers: { "x-token": TOKEN_ESCRITA } });
+      const d = await r.json();
+      identidadeSim = { nick, roblox_id: Number(d.roblox_id) || 0 };
+      lblIdentSim.textContent = identidadeSim.roblox_id > 0
+        ? `simulando como: ${esc(nick)} ✅ (avatar real)`
+        : `simulando como: ${esc(nick)} ⚠️ (nick não achado — genérico)`;
+    } catch {
+      identidadeSim = { nick, roblox_id: 0 };
+      lblIdentSim.textContent = `simulando como: ${esc(nick)} ⚠️ (relay falhou)`;
+    }
+  }
+  $("#simNick").addEventListener("change", resolverIdentidadeSim);
+  $("#simNick").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") resolverIdentidadeSim();
+  });
+
+  function comboSim() {
+    return Math.max(1, Math.min(300, Math.floor(Number($("#simCombo").value) || 1)));
+  }
+
+  document.querySelectorAll("[data-simular]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      await resolverIdentidadeSim();
+      const tipo = btn.dataset.simular;
+      // O ×combo vale pras AÇÕES também, não só pros presentes: "50
+      // comentários de uma vez" é o que enche a formação num teste.
+      const vezes = comboSim();
+      simular({
+        tipo,
+        vezes,
+        distintos: true, // cada um vira uma pessoa própria na grade
+        nickname: identidadeSim ? identidadeSim.nick : "🧪 Painel",
+        roblox_id: identidadeSim ? identidadeSim.roblox_id : 0,
+        nick_roblox: identidadeSim ? identidadeSim.nick : "",
+      }, btn.textContent.trim() + (vezes > 1 ? ` ×${vezes}` : ""));
+    });
+  });
+
+  // ── busca de presente pra simular (reusa o catálogo já carregado) ──
+  const caixaBuscaSim = $("#buscarSim");
+  const divResultadosSim = $("#resultadosSim");
+  function renderBuscaSim() {
+    const termo = caixaBuscaSim.value.trim().toLowerCase();
+    if (!termo) { divResultadosSim.style.display = "none"; return; }
+    const achados = catalogo
+      .filter((p) => p.nome.includes(termo) || p.rotulo.toLowerCase().includes(termo))
+      .slice(0, 20);
+    divResultadosSim.innerHTML = achados.length
+      ? achados.map((p) => `
+          <div class="item" data-nome="${esc(p.nome)}">
+            ${p.imagem ? `<img src="${p.imagem}" loading="lazy" alt="">` : `<span style="width:30px"></span>`}
+            <span>${esc(p.rotulo)}</span>
+            <span class="m">🪙 ${p.moedas ?? "?"}</span>
+          </div>`).join("")
+      : `<div class="item">nenhum presente com "${esc(termo)}"</div>`;
+    divResultadosSim.style.display = "block";
+    divResultadosSim.querySelectorAll(".item[data-nome]").forEach((el) => {
+      el.onclick = async () => {
+        await resolverIdentidadeSim();
+        const info = infoDoCatalogo(el.dataset.nome);
+        const vezes = comboSim();
+        const combo = vezes > 1 ? ` ×${vezes}` : "";
+        simular({
+          tipo: "presente",
+          presente: el.dataset.nome,
+          moedas: info.moedas ?? 0,
+          vezes,
+          nickname: identidadeSim ? identidadeSim.nick : "🧪 Painel",
+          roblox_id: identidadeSim ? identidadeSim.roblox_id : 0,
+          nick_roblox: identidadeSim ? identidadeSim.nick : "",
+        }, `presente "${info.rotulo}" (${info.moedas ?? "?"} moedas)${combo}`);
+        caixaBuscaSim.value = "";
+        divResultadosSim.style.display = "none";
+      };
+    });
+  }
+  caixaBuscaSim.addEventListener("input", renderBuscaSim);
+  caixaBuscaSim.addEventListener("focus", renderBuscaSim);
+  document.addEventListener("click", (e) => {
+    if (!e.target.closest(".buscaSim")) divResultadosSim.style.display = "none";
+  });
+
+  /* ─────────────────── A VOZ: gravar por categoria ───────────────────
+     O que toca as gravações na live é o programa voz.py, FORA do navegador.
+     Aqui a gente só grava, ouve e apaga — de propósito: foi justamente o
+     áudio dentro do Chrome que emudecia no meio da live. */
+
+  const caixasEl = $("#caixasAudio");
+  const EXT_OK = ["mp3", "wav", "ogg", "m4a"];
+
+  // Mesma regra do relay e da voz.py: "sports car" -> "g_sports_car". O
+  // traço separa categoria e carimbo no nome do arquivo, então não pode
+  // sobrar nenhum no meio da categoria.
+  function catDoPresente(nome, prefixo) {
+    const limpo = String(nome).toLowerCase().replace(/[^a-z0-9]+/g, "_")
+      .replace(/^_+|_+$/g, "").slice(0, 44);
+    return limpo ? prefixo + "_" + limpo : "";
+  }
+
+  const CAT_FIXAS = [
+    { cat: "aura", titulo: "✨ Parou em quem tem <b>aura</b>" },
+    { cat: "sem_aura", titulo: "💬 Parou em quem <b>só comentou</b>" },
+    { cat: "conversa", titulo: "🗣️ Frases soltas <b>no silêncio</b>" },
+    // A trilha de fundo: toca em LOOP a live inteira. A do sixseven entra
+    // durante a dança especial e sai quando ela acaba.
+    { cat: "trilha", titulo: "🎶 Música de fundo (<b>loop</b>)" },
+    { cat: "trilha_sixseven", titulo: "🕺 Música do <b>sixseven</b>" },
+  ];
+
+  // As músicas de cada dança são do modo avaliador e moram no painel dele.
+  let categorias = CAT_FIXAS.slice();
+
+  const caixaHtml = (c, aberta) => `
+      <details class="cxAudio" data-cat="${c.cat}"${aberta ? " open" : ""}>
+        <summary>${c.titulo} <span class="conta">vazio</span></summary>
+        <div class="acoes">
+          <button class="mini" data-acao="gravar">🎙️ Gravar</button>
+          <button class="mini" data-acao="arquivo" title="suba um mp3/wav pronto">⬆ arquivo</button>
+          <button class="mini perigo" data-acao="limpar" hidden>🗑 apagar todos</button>
+          <span class="tempo"></span>
+        </div>
+        <div class="lista"></div>
+      </details>`;
+
+  function montarCaixasAudio(nomesPresentes) {
+    // Um par por presente: a FALA (quando a câmera para nele) e a MÚSICA
+    // (quando o presente chega). São gatilhos diferentes de propósito — a
+    // música começa junto com o presente, a fala só quando ele vira cena.
+    const doPresente = [];
+    for (const n of nomesPresentes) {
+      const g = catDoPresente(n, "g"), m = catDoPresente(n, "m");
+      if (!g) continue;
+      doPresente.push({ cat: g, titulo: "🎁 Fala do <b>" + esc(n) + "</b>" });
+      doPresente.push({ cat: m, titulo: "🎵 Música do <b>" + esc(n) + "</b>" });
+    }
+    categorias = CAT_FIXAS.concat(doPresente);
+    // As dos presentes vêm fechadas: são centenas, e abertas enterrariam as fixas.
+    caixasEl.innerHTML = CAT_FIXAS.map((c) => caixaHtml(c, true)).join("")
+      + doPresente.map((c) => caixaHtml(c, false)).join("");
+    listarAudios();
+  }
+
+  // Procura no DOCUMENTO, não num container: as caixas moram em dois lugares
+  // agora (voz e música), e o resto do código não precisa saber em qual.
+  const caixaDe = (cat) => document.querySelector('.cxAudio[data-cat="' + CSS.escape(cat) + '"]');
+
+  /**
+   * Um tocador só, pro botão de ouvir. Nada disso acontece durante a live —
+   * é conferência, não transmissão.
+   *
+   * O MESMO DEFEITO QUE O AVALIADOR TINHA (corrigido em 12/08/2026): o
+   * "2º clique = parar" comparava o ELEMENTO da ficha, e `listarAudios()`
+   * reconstrói o `innerHTML` a cada gravação, subida ou apagar. Depois disso
+   * o elemento na tela é outro objeto, a comparação nunca dá certo, e o
+   * segundo clique REINICIA o áudio em vez de parar. E o botão continuava
+   * escrito "▶ N" enquanto tocava, então nada dizia como calar.
+   *
+   * A correção guarda o NOME DO ARQUIVO, que sobrevive a qualquer
+   * redesenho. Aqui o rótulo carrega o número da posição, então quem desenha
+   * é a própria lista -- `pintarPrevia` só troca o símbolo.
+   */
+  const tocador = new Audio();
+  let previaTocando = null; // o nome do arquivo, nunca o elemento
+
+  function pintarPrevia() {
+    for (const btn of caixasEl.querySelectorAll("[data-tocar]")) {
+      const eEste = btn.dataset.tocar === previaTocando;
+      btn.textContent = (eEste ? "⏸ " : "▶ ") + (btn.dataset.pos || "");
+      btn.title = eEste ? "parar" : "ouvir";
+      btn.closest(".ficha")?.classList.toggle("tocando", eEste);
+    }
+  }
+
+  function ouvir(arq) {
+    tocador.pause();
+    if (previaTocando === arq) { // 2º clique na MESMA = parar
+      previaTocando = null;
+      pintarPrevia();
+      return;
+    }
+    previaTocando = arq;
+    const soltar = () => {
+      previaTocando = null;
+      pintarPrevia();
+    };
+    tocador.onended = soltar;
+    tocador.onerror = soltar;
+    tocador.src = "/audios/" + encodeURIComponent(arq);
+    tocador.play().catch(soltar);
+    pintarPrevia();
+  }
+
+  async function listarAudios() {
+    let audios = {};
+    try {
+      audios = (await (await fetch("/audios")).json()).audios || {};
+    } catch { return; } // relay fora: mantém o que está na tela
+    for (const { cat } of categorias) {
+      const caixa = caixaDe(cat);
+      if (!caixa) continue;
+      const arquivos = audios[cat] || [];
+      caixa.querySelector(".conta").textContent = arquivos.length
+        ? arquivos.length + (arquivos.length === 1 ? " áudio" : " áudios") : "vazio";
+      caixa.querySelector('[data-acao="limpar"]').hidden = arquivos.length < 2;
+      const lista = caixa.querySelector(".lista");
+      lista.innerHTML = arquivos.length
+        ? arquivos.map((arq, i) => `
+            <span class="ficha">
+              <button data-tocar="${esc(arq)}" data-pos="${i + 1}" title="ouvir">▶ ${i + 1}</button>
+              <button class="x" data-apagar="${esc(arq)}" title="apagar">✕</button>
+            </span>`).join("")
+        : '<div class="vazio">nada gravado ainda</div>';
+    }
+    /* A lista foi redesenhada do zero: sem isto o áudio que está tocando volta
+       com o botão escrito "▶", e some da tela o único jeito de calá-lo. */
+    pintarPrevia();
+  }
+
+  async function apagarAudio(arq) {
+    await fetch("/audios/" + encodeURIComponent(arq), {
+      method: "DELETE", headers: { "x-token": TOKEN_ESCRITA },
+    });
+  }
+
+  function enviarArquivos(cat) {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "audio/*";
+    input.multiple = true;
+    input.onchange = async () => {
+      let subiu = 0;
+      for (const f of input.files) {
+        const ext = (f.name.split(".").pop() || "").toLowerCase();
+        if (!EXT_OK.includes(ext)) {
+          avisar(f.name + ": use mp3/wav/ogg/m4a", "erro");
+          continue;
+        }
+        if (f.size > 25_000_000) { avisar(f.name + ": máx 25MB", "erro"); continue; }
+        try {
+          const r = await fetch("/audios/" + cat + "?ext=" + ext, {
+            method: "POST",
+            headers: { "x-token": TOKEN_ESCRITA },
+            body: f,
+          });
+          if (!r.ok) throw new Error("HTTP " + r.status);
+          subiu++;
+        } catch (e) { avisar(f.name + ": falhou (" + e.message + ")", "erro"); }
+      }
+      if (subiu) { avisar("⬆ " + subiu + " arquivo(s) no lugar", "ok"); listarAudios(); }
+    };
+    input.click();
+  }
+
+  // Um gravador por vez: clicou de novo, para e envia.
+  let gravador = null, pedacos = [], gravandoCat = null, cronometro = null;
+  async function alternarGravacao(cat, btn) {
+    const rotulo = caixaDe(cat).querySelector(".tempo");
+    if (gravador && gravandoCat === cat) { gravador.stop(); return; }
+    if (gravador) { avisar("já tem uma gravação rolando", "erro"); return; }
+    let fluxo;
+    try {
+      fluxo = await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch (e) {
+      avisar("não consegui abrir o microfone (" + e.name + ")", "erro");
+      return;
+    }
+    pedacos = [];
+    gravandoCat = cat;
+    gravador = new MediaRecorder(fluxo);
+    gravador.ondataavailable = (e) => { if (e.data.size) pedacos.push(e.data); };
+    gravador.onstop = async () => {
+      clearInterval(cronometro);
+      fluxo.getTracks().forEach((t) => t.stop());
+      btn.textContent = "🎙️ Gravar";
+      rotulo.textContent = "enviando…";
+      const blob = new Blob(pedacos, { type: "audio/webm" });
+      gravador = null; gravandoCat = null;
+      try {
+        const r = await fetch("/audios/" + cat, {
+          method: "POST",
+          headers: { "x-token": TOKEN_ESCRITA },
+          body: blob,
+        });
+        if (!r.ok) throw new Error("HTTP " + r.status);
+        rotulo.textContent = "";
+        avisar("🎙️ áudio salvo", "ok");
+        listarAudios();
+      } catch (e) {
+        rotulo.textContent = "";
+        avisar("falha ao salvar (" + e.message + ")", "erro");
+      }
+    };
+    gravador.start();
+    btn.textContent = "⏹ Parar";
+    const t0 = Date.now();
+    cronometro = setInterval(() => {
+      const s = (Date.now() - t0) / 1000;
+      rotulo.textContent = "gravando… " + s.toFixed(1) + "s";
+      if (s > 15 && gravador) gravador.stop(); // teto de sanidade
+    }, 100);
+  }
+
+  /* Um ouvinte delegado POR CONTAINER: as caixas são refeitas a cada
+     carregar(), e delegar sobrevive a isso. São dois containers porque as
+     caixas de música moram no card da dança — sem o segundo `addEventListener`
+     os botões delas não fariam nada, calados. */
+  const cliqueNaCaixa = async (e) => {
+    const btn = e.target.closest("button");
+    if (!btn) return;
+    const caixa = btn.closest(".cxAudio");
+    if (!caixa) return;
+    const cat = caixa.dataset.cat;
+    if (btn.dataset.tocar) return ouvir(btn.dataset.tocar);
+    if (btn.dataset.apagar) { await apagarAudio(btn.dataset.apagar); return listarAudios(); }
+    const acao = btn.dataset.acao;
+    if (acao === "gravar") return alternarGravacao(cat, btn);
+    if (acao === "arquivo") return enviarArquivos(cat);
+    if (acao === "limpar") {
+      if (!confirm("Apagar TODOS os áudios desta categoria?")) return;
+      const arqs = [...caixa.querySelectorAll("[data-apagar]")].map((b) => b.dataset.apagar);
+      for (const a of arqs) await apagarAudio(a);
+      listarAudios();
+    }
+  };
+  caixasEl.addEventListener("click", cliqueNaCaixa);
+
+  /* A voz está de pé? Sem ela nada toca na live, e o silêncio não teria
+     explicação nenhuma — este selo é a explicação. */
+  const seloVoz = $("#vozViva");
+  async function verVoz() {
+    try {
+      const d = await (await fetch("/voz-viva")).json();
+      const temVoz = (d.quem || []).includes("voz");
+      seloVoz.textContent = temVoz ? "🔊 no ar" : "⚠️ não está aberta";
+      seloVoz.classList.toggle("viva", temVoz);
+      seloVoz.title = temVoz ? "voz.py está rodando e vai narrar a live"
+        : "abra a janela da Voz (o iniciar_live.bat abre) — sem ela, nada é falado";
+    } catch { /* relay fora: o aviso do topo já cobre */ }
+  }
+  verVoz();
+  setInterval(verVoz, 5000);
+
+  /* Qual modo está NO AR — este painel é o da multidão.
+
+     Sem este aviso, mexer aqui com o avaliador no ar não muda nada na tela
+     e parece painel quebrado. A faixa diz o que está acontecendo e leva pro
+     painel certo em um clique. */
+  const seletorModo = $("[data-caminho='geral.modo']");
+  const faixaModo = $("#faixaModo");
+
+  function avisarModo() {
+    const outro = seletorModo.value === "avaliador";
+    faixaModo.classList.toggle("outro", outro);
+    faixaModo.innerHTML = outro
+      ? "⭐ No ar: <b>Avaliador de skin</b>. <span>Este é o painel da multidão — "
+        + 'mexer aqui não muda a live agora.</span> <a href="/avaliador.html" target="_blank">'
+        + "abrir o painel do Avaliador ↗</a>"
+      : "👥 No ar: <b>Multidão</b> — este painel. "
+        + '<span>O do avaliador é outra página:</span> <a href="/avaliador.html" target="_blank">'
+        + "abrir ↗</a>";
+  }
+  // `change` e não `input`: em <select> os dois disparam junto, e `change` é
+  // o que também pega a troca feita por código quando a config carrega.
+  seletorModo.addEventListener("change", avisarModo);
+  avisarModo();
+
+  carregarCatalogo().then(carregar);
+
+  /* ─────────────────────────── A LIVE ───────────────────────────
+   *
+   * Só aparece quando o relay SABE ligar a live -- ou seja, quando ele está
+   * rodando dentro do launcher. No kit avulso a rota /live não existe, e a
+   * caixa fica escondida: mostrar um botão que responde 404 é pior do que
+   * não ter botão nenhum.
+   */
+  const caixaLive = document.getElementById("caixaLive");
+  const campoLive = document.getElementById("liveUser");
+  const btnConectar = document.getElementById("liveConectar");
+  const btnDesconectar = document.getElementById("liveDesconectar");
+  const estadoLive = document.getElementById("liveEstado");
+
+  /* A pessoa digita "@fulano" ou "fulano", tanto faz -- o relay aceita os
+     dois. Sem isto o console registrava "@@fulano", e um @ a mais numa
+     mensagem que o suporte vai procurar no Discord atrapalha a busca. */
+  const semArroba = (u) => String(u).replace(/^@+/, "");
+
+  function pintarLive(d) {
+    const ligada = !!d?.ligada;
+    btnDesconectar.hidden = !ligada;
+    btnConectar.textContent = ligada ? "🔁 Trocar de @" : "🔴 Conectar";
+    if (ligada) {
+      campoLive.value = "@" + d.user;
+      estadoLive.innerHTML =
+        "🔴 Conectando em <b>@" + d.user + "</b>. Os comentários e presentes " +
+        "começam a aparecer assim que a live estiver no ar.";
+    } else {
+      estadoLive.textContent =
+        "Desconectada. Sem isto o jogo roda, mas ninguém da sua live entra nele.";
+    }
+  }
+
+  async function verLive() {
+    try {
+      const r = await fetch("/live");
+      if (r.status === 404) return false; // relay sem launcher: some a caixa
+      pintarLive(await r.json());
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  btnConectar.addEventListener("click", async () => {
+    const user = campoLive.value.trim();
+    if (!user) {
+      estadoLive.textContent = "Digite o seu @ primeiro.";
+      campoLive.focus();
+      return;
+    }
+    btnConectar.disabled = true;
+    estadoLive.textContent = "Ligando a ponte com o TikTok…";
+    try {
+      const r = await fetch("/live", {
+        method: "POST",
+        headers: { "content-type": "application/json", "x-token": TOKEN_ESCRITA },
+        body: JSON.stringify({ user }),
+      });
+      const d = await r.json();
+      if (!r.ok) {
+        /* O MESMO texto vai para a tela e para o console.
+           Na tela ele some no próximo clique; no console ele fica, com hora,
+           para a pessoa copiar depois de tentar três vezes. */
+        const recado = d.erro || "não consegui conectar";
+        estadoLive.textContent = "❌ " + recado;
+        anotarErro("conectar @" + semArroba(user) + ": " + recado);
+      } else pintarLive(d);
+    } catch (e) {
+      estadoLive.textContent = "❌ " + e.message;
+      anotarErro("conectar @" + semArroba(user) + ": " + e.message);
+    } finally {
+      btnConectar.disabled = false;
+    }
+  });
+
+  btnDesconectar.addEventListener("click", async () => {
+    btnDesconectar.disabled = true;
+    try {
+      const r = await fetch("/live", {
+        method: "DELETE",
+        headers: { "x-token": TOKEN_ESCRITA },
+      });
+      pintarLive(await r.json());
+    } finally {
+      btnDesconectar.disabled = false;
+    }
+  });
+
+  // Enter no campo conecta: é o gesto de quem acabou de digitar o @.
+  campoLive.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") btnConectar.click();
+  });
+
+  // ---- os botões do mini console ----
+  document.getElementById("consoleCopiar").addEventListener("click", async (e) => {
+    const b = e.currentTarget;
+    const texto = textoDoConsole();
+    try {
+      await navigator.clipboard.writeText(texto);
+      b.textContent = "✅ Copiado";
+    } catch {
+      /* `navigator.clipboard` só funciona em contexto seguro, e este painel
+         roda em http://127.0.0.1. Em geral o Chromium trata localhost como
+         seguro, mas quando não trata, SELECIONAR o texto deixa o Ctrl+C da
+         pessoa funcionando -- um botão de copiar que não copia e não avisa
+         seria a pior versão disto. */
+      const corpo = document.getElementById("consoleLinhas");
+      const faixa = document.createRange();
+      faixa.selectNodeContents(corpo);
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(faixa);
+      b.textContent = "aperte Ctrl+C";
+    }
+    setTimeout(() => { b.textContent = "📋 Copiar"; }, 2500);
+  });
+
+  document.getElementById("consoleLimpar").addEventListener("click", () => {
+    ERROS.length = 0;
+    desenharConsole();
+  });
+
+  verLive().then((tem) => {
+    caixaLive.hidden = !tem;
+  });
+</script>
+</body>
+</html>

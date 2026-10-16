@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:;">
+<title>Studio Mode — RatGames</title>
+<link rel="stylesheet" href="estilo.css">
+<link rel="stylesheet" href="studio.css">
+</head>
+<body class="studio">
+
+<aside class="st-barra">
+  <div class="st-marca">
+    <img class="logo-mini" src="marca/logo.svg" alt="">
+    <div>
+      <strong>Studio Mode</strong>
+      <span>Painel da live</span>
+    </div>
+  </div>
+
+  <section class="st-bloco">
+    <h2>TIKTOK LIVE</h2>
+    <input type="text" id="arroba" placeholder="@seu_usuario" autocomplete="off">
+    <button id="btnConectar" class="botao-principal">CONECTAR</button>
+    <div class="st-linha">
+      <button id="btnSimulador" class="botao-secundario">Simulador</button>
+      <button id="btnDesligar" class="botao-secundario perigo">Desligar</button>
+    </div>
+    <p id="ponteEstado" class="st-nota">Abra um jogo para conectar.</p>
+    <pre id="ponteLog" class="st-log" hidden></pre>
+  </section>
+
+  <section class="st-bloco">
+    <h2>JANELAS DE OVERLAY</h2>
+    <p class="st-ajuda">
+      Abrem em janela transparente. No OBS, adicione uma
+      <strong>Captura de janela</strong> apontando para elas.
+    </p>
+    <button id="btnRank" class="botao-secundario largo">Abrir Top Vilões</button>
+    <button id="btnTimer" class="botao-secundario largo">Abrir Timer da rodada</button>
+  </section>
+</aside>
+
+<main class="st-conteudo">
+  <header class="st-topo">
+    <div id="abas" class="st-abas"></div>
+  </header>
+
+  <div id="stVazio" class="st-vazio">
+    <h3>Nenhum jogo aberto</h3>
+    <p>Abra um jogo no launcher para conectar na live e configurar as ações dele aqui.</p>
+  </div>
+
+  <div id="stCorpo" class="st-corpo" hidden>
+    <section class="st-acoes">
+      <header class="acoes-topo">
+        <h3>Ações <span class="selo">PADRÃO</span></h3>
+        <p class="acoes-texto">
+          Configure o que cada presente da live faz neste jogo. As mudanças
+          salvam sozinhas; <strong>Testar</strong> dispara a ação no jogo aberto.
+        </p>
+      </header>
+      <p id="stAviso" class="aviso atencao" hidden></p>
+      <div id="stListaAcoes" class="grade-acoes"></div>
+    </section>
+  </div>
+</main>
+
+<script src="studio.js"></script>
+</body>
+</html>

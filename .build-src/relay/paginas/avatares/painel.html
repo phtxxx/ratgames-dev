@@ -1,0 +1,1082 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Painel da Live — Avatares no Palco</title>
+<style>
+  /* ═══════════════════════════════════════════════════════════════════════
+     O PAINEL ÚNICO (16/08/2026)
+
+     Antes eram TRÊS páginas em três janelas (multidão, avaliador, músicas),
+     e a reclamação era uma só: "tá muito confuso pros clientes essa mudança
+     de painel". Agora é UMA janela com um menu à esquerda — troca-se de
+     página, nunca de janela.
+
+     A segunda regra: SIMPLES POR PADRÃO. Cada página mostra só o que 90%
+     das pessoas mexem; o resto vive atrás do botão "Ajustes avançados", que
+     abre a tela completa antiga EMBUTIDA (iframe ?embutido=1). As telas
+     antigas continuam existindo por inteiro — nada foi perdido, só saiu da
+     frente.
+
+     Os ajustes simples salvam SOZINHOS via POST /config/mesclar: o que esta
+     tela não mostra, ela não toca — é a mesma regra que já salvou os dois
+     painéis antigos de se apagarem mutuamente.
+     ═══════════════════════════════════════════════════════════════════════ */
+  :root {
+    --fundo: #0d1117; --cartao: #161b22; --borda: #2d333b;
+    --texto: #e6edf3; --texto2: #8b949e; --acento: #58a6ff;
+    --ok: #3fb950; --erro: #f85149; --moeda: #f0b72f; --rosa: #ff2d6f;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { height: 100%; }
+  body { background: var(--fundo); color: var(--texto);
+    font: 14px/1.5 "Segoe UI", system-ui, sans-serif; display: flex; }
+
+  /* ── o menu à esquerda ── */
+  #menu { width: 208px; flex: none; background: #0a0d12; border-right: 1px solid var(--borda);
+    display: flex; flex-direction: column; padding: 14px 10px; gap: 4px; }
+  #menu .marca { font-size: 15px; font-weight: 800; padding: 4px 10px 12px; }
+  #menu .marca small { display: block; color: var(--texto2); font-weight: 400; font-size: 11px; }
+  #menu button { display: flex; align-items: center; gap: 10px; width: 100%;
+    background: transparent; color: var(--texto2); border: 0; border-radius: 8px;
+    padding: 10px 12px; font-size: 13.5px; font-weight: 600; cursor: pointer; text-align: left; }
+  #menu button:hover { background: #161b22; color: var(--texto); }
+  #menu button.ativa { background: #1c2530; color: var(--texto); }
+  #menu button .icone { font-size: 16px; width: 20px; text-align: center; }
+  #menu .separa { border-top: 1px solid var(--borda); margin: 8px 6px; }
+  #menu .rodape { margin-top: auto; padding: 8px 10px; color: var(--texto2); font-size: 11px; }
+  #menu .selo-modo { display: inline-block; margin-top: 6px; padding: 2px 10px; border-radius: 20px;
+    border: 1px solid var(--borda); font-size: 11px; color: #79c0ff; background: #16202c; }
+
+  /* ── a área principal ── */
+  #principal { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+
+  /* A BARRA DA LIVE fica em cima de TODAS as páginas: é a primeira coisa a
+     fazer e a única que não pode ficar escondida atrás de menu nenhum. */
+  #barraLive { display: flex; align-items: center; gap: 10px; padding: 12px 18px;
+    border-bottom: 1px solid var(--borda); background: #0f141b; flex-wrap: wrap; }
+  #barraLive .rotulo { font-weight: 700; font-size: 13px; white-space: nowrap; }
+  #liveUser { background: var(--fundo); color: var(--texto); border: 1px solid var(--borda);
+    border-radius: 8px; padding: 8px 10px; font-size: 14px; width: 200px; }
+  #liveUser:focus { outline: 1px solid var(--acento); }
+  #barraLive button { border: 0; border-radius: 8px; padding: 9px 16px; font-weight: 700;
+    font-size: 13px; cursor: pointer; }
+  #liveConectar { background: var(--rosa); color: #fff; }
+  #liveDesconectar { background: var(--cartao); color: var(--texto); border: 1px solid var(--borda); }
+  #barraLive button:hover { filter: brightness(1.15); }
+  #liveEstado { color: var(--texto2); font-size: 12px; flex: 1; min-width: 180px; }
+  #liveEstado.ok { color: var(--ok); }
+  #liveEstado.erro { color: var(--erro); }
+  #estado { color: var(--texto2); font-size: 12px; white-space: nowrap; }
+  #estado.ok { color: var(--ok); }
+  #estado.erro { color: var(--erro); }
+
+  #conteudo { flex: 1; overflow-y: auto; padding: 20px 24px; }
+  .pagina { display: none; max-width: 980px; margin: 0 auto; }
+  .pagina.ativa { display: block; }
+  .pagina.comIframe { max-width: none; height: 100%; }
+
+  h1 { font-size: 20px; margin-bottom: 2px; }
+  .sub { color: var(--texto2); margin-bottom: 18px; font-size: 13px; }
+  h2 { font-size: 13px; color: var(--texto2); text-transform: uppercase;
+       letter-spacing: .08em; margin: 22px 0 10px; }
+  .cartao { background: var(--cartao); border: 1px solid var(--borda);
+    border-radius: 12px; padding: 16px; margin-bottom: 12px; }
+  .cartao .tit { font-weight: 700; font-size: 14.5px; margin-bottom: 2px; }
+  .cartao .desc { color: var(--texto2); font-size: 12px; }
+  button.acao { background: var(--acento); color: #04131f; border: 0; border-radius: 8px;
+    padding: 9px 18px; font-weight: 700; font-size: 13.5px; cursor: pointer; }
+  button.acao:hover { filter: brightness(1.15); }
+  button.secundario { background: var(--cartao); color: var(--texto); border: 1px solid var(--borda);
+    border-radius: 8px; padding: 8px 14px; font-weight: 600; font-size: 13px; cursor: pointer; }
+  button.secundario:hover { filter: brightness(1.3); }
+  button.mini { background: transparent; color: var(--texto2); border: 1px solid var(--borda);
+    border-radius: 7px; padding: 4px 10px; font-size: 12px; cursor: pointer; }
+  button.mini:hover { color: var(--texto); }
+  input[type=number], input[type=text], select {
+    background: var(--fundo); color: var(--texto); border: 1px solid var(--borda);
+    border-radius: 7px; padding: 7px 9px; font-size: 13.5px; }
+  input:focus, select:focus { outline: 1px solid var(--acento); }
+  label.campo { display: flex; flex-direction: column; gap: 3px; font-size: 12px; color: var(--texto2); }
+
+  /* ── os cartões grandes de escolher (modo, formação) ── */
+  .escolha { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .escolha .opcao { background: var(--cartao); border: 2px solid var(--borda); border-radius: 14px;
+    padding: 18px 16px; cursor: pointer; transition: border-color .12s; }
+  .escolha .opcao:hover { border-color: var(--texto2); }
+  .escolha .opcao.ligada { border-color: var(--ok); }
+  .escolha .opcao .emoji { font-size: 30px; }
+  .escolha .opcao .tit { font-size: 16px; font-weight: 800; margin: 6px 0 3px; }
+  .escolha .opcao .desc { color: var(--texto2); font-size: 12.5px; }
+  .escolha .opcao .noAr { display: inline-block; margin-top: 8px; font-size: 11px; font-weight: 700;
+    color: var(--ok); visibility: hidden; }
+  .escolha .opcao.ligada .noAr { visibility: visible; }
+
+  /* ── interruptor ── */
+  .chave { position: relative; width: 40px; height: 22px; flex: none; }
+  .chave input { display: none; }
+  .chave span { position: absolute; inset: 0; background: var(--borda); border-radius: 22px;
+    cursor: pointer; transition: background .15s; }
+  .chave span::after { content: ""; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px;
+    background: #fff; border-radius: 50%; transition: left .15s; }
+  .chave input:checked + span { background: var(--ok); }
+  .chave input:checked + span::after { left: 21px; }
+
+  .linhaParticipa { display: flex; align-items: center; gap: 12px; padding: 10px 4px;
+    border-top: 1px solid #1c222b; }
+  .linhaParticipa:first-of-type { border-top: 0; }
+  .linhaParticipa .nome { font-size: 14px; font-weight: 600; flex: 1; }
+  .linhaParticipa .extra { display: flex; align-items: center; gap: 6px; color: var(--texto2); font-size: 12px; }
+  .linhaParticipa input[type=number] { width: 84px; }
+
+  /* ── o avançado (iframe) ── */
+  .abrirAvancado { margin-top: 4px; }
+  iframe.avancado { width: 100%; height: calc(100vh - 132px); border: 0; border-radius: 12px;
+    background: var(--fundo); }
+  .cabAvancado { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+
+  /* ── console de erros ── */
+  .console-erros { margin-top: 12px; border: 1px solid var(--borda); border-radius: 8px;
+    background: #0a0d12; overflow: hidden; }
+  .console-cab { display: flex; align-items: center; gap: 10px; padding: 7px 10px;
+    border-bottom: 1px solid var(--borda); }
+  .console-tit { color: var(--erro); font-size: 12px; font-weight: 700; }
+  .console-botoes { margin-left: auto; display: flex; gap: 6px; }
+  .console-corpo { max-height: 168px; overflow-y: auto; padding: 8px 10px;
+    font: 11.5px/1.55 Consolas, "Cascadia Mono", monospace; color: #d7dde5;
+    white-space: pre-wrap; word-break: break-word; }
+  .console-linha { padding: 2px 0; border-top: 1px solid #171c23; }
+  .console-linha:first-child { border-top: 0; }
+  .console-hora { color: var(--texto2); }
+  .console-pe { padding: 6px 10px; border-top: 1px solid var(--borda); color: var(--texto2); font-size: 11px; }
+
+  /* ── áudios ── */
+  .cxAudio { background: var(--cartao); border: 1px solid var(--borda); border-radius: 10px;
+    padding: 12px 14px; margin-bottom: 10px; }
+  .cxAudio .cab { display: flex; align-items: center; gap: 10px; }
+  .cxAudio .tit { font-size: 13.5px; font-weight: 600; flex: 1; }
+  .cxAudio .conta { color: var(--texto2); font-size: 11px; }
+  .cxAudio .lista { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
+  .ficha { display: inline-flex; border: 1px solid var(--borda); border-radius: 6px; overflow: hidden; }
+  .ficha button { background: transparent; color: var(--texto2); border: 0; padding: 3px 8px;
+    font-size: 11px; font-weight: 600; cursor: pointer; }
+  .ficha button:hover { color: var(--texto); background: #1f2630; }
+  .ficha.tocando { border-color: var(--ok); }
+  #vozViva { font-size: 11px; padding: 2px 10px; border-radius: 20px;
+    border: 1px solid var(--borda); color: var(--texto2); }
+  #vozViva.viva { color: var(--ok); border-color: var(--ok); }
+
+  /* ── overlays ── */
+  .linkOverlay { display: flex; align-items: center; gap: 10px; padding: 10px 4px;
+    border-top: 1px solid #1c222b; flex-wrap: wrap; }
+  .linkOverlay:first-of-type { border-top: 0; }
+  .linkOverlay b { font-family: ui-monospace, Consolas, monospace; font-size: 12px; font-weight: 400;
+    color: var(--texto); background: #0a0d12; padding: 4px 8px; border-radius: 6px; }
+  .linkOverlay .nome { font-weight: 600; font-size: 13px; width: 170px; }
+
+  /* ── simulador ── */
+  .simLinha { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 10px; }
+  .simLinha input[type=text] { width: 220px; }
+  #simIdentidade { color: var(--texto2); font-size: 12px; }
+  .simBotoes { display: flex; gap: 8px; flex-wrap: wrap; }
+  .simBotoes button { background: var(--cartao); color: var(--texto); border: 1px solid var(--borda);
+    border-radius: 8px; padding: 9px 14px; font-size: 13px; font-weight: 600; cursor: pointer; }
+  .simBotoes button:hover { border-color: var(--texto2); }
+  .buscaSim { position: relative; margin-top: 10px; max-width: 460px; }
+  .buscaSim input { width: 100%; }
+  #resultadosSim { position: absolute; top: 100%; left: 0; right: 0; z-index: 10;
+    background: var(--cartao); border: 1px solid var(--borda); border-radius: 10px;
+    max-height: 300px; overflow-y: auto; display: none; margin-top: 4px; }
+  #resultadosSim .item { display: flex; align-items: center; gap: 10px; padding: 7px 12px; cursor: pointer; }
+  #resultadosSim .item:hover { background: #1f2630; }
+  #resultadosSim img { width: 30px; height: 30px; object-fit: contain; border-radius: 6px; background: #0a0d12; }
+  #resultadosSim .m { margin-left: auto; color: var(--moeda); font-weight: 700; font-size: 12px; }
+
+  .passo { display: flex; gap: 12px; align-items: flex-start; padding: 10px 0; }
+  .passo .num { flex: none; width: 28px; height: 28px; border-radius: 50%; background: #1c2530;
+    color: var(--acento); font-weight: 800; display: flex; align-items: center; justify-content: center; }
+  .passo .tit { font-weight: 700; font-size: 14px; }
+  .passo .desc { color: var(--texto2); font-size: 12.5px; }
+  #statusAgora { display: flex; gap: 16px; flex-wrap: wrap; color: var(--texto2); font-size: 12.5px; }
+  #statusAgora b { color: var(--texto); }
+</style>
+</head>
+<body>
+  <nav id="menu">
+    <div class="marca">🕺 Avatares no Palco<small>painel da live</small></div>
+    <button data-pagina="inicio" class="ativa"><span class="icone">🏠</span> Início</button>
+    <button data-pagina="multidao"><span class="icone">👥</span> Multidão</button>
+    <button data-pagina="avaliador"><span class="icone">⭐</span> Avaliador</button>
+    <button data-pagina="musicas"><span class="icone">🎵</span> Músicas &amp; Danças</button>
+    <button data-pagina="audios"><span class="icone">🎙️</span> Voz &amp; Áudios</button>
+    <div class="separa"></div>
+    <button data-pagina="overlays"><span class="icone">📺</span> Overlays (OBS)</button>
+    <button data-pagina="testar"><span class="icone">🧪</span> Testar sem live</button>
+    <div class="rodape">
+      no ar agora:<br><span class="selo-modo" id="seloModo">…</span>
+    </div>
+  </nav>
+
+  <div id="principal">
+    <div id="barraLive">
+      <span class="rotulo">🔴 Sua live:</span>
+      <input type="text" id="liveUser" placeholder="@seucanal" autocomplete="off" spellcheck="false">
+      <button id="liveConectar">Conectar</button>
+      <button id="liveDesconectar" hidden>Desconectar</button>
+      <span id="liveEstado">conferindo…</span>
+      <span id="estado"></span>
+    </div>
+
+    <div id="conteudo">
+      <section class="pagina ativa" data-pagina="inicio">
+        <h1>Bem-vindo! 👋</h1>
+        <div class="sub">Três passos e a sua live está no ar. Tudo aqui salva sozinho — não existe botão de salvar.</div>
+
+        <div class="cartao">
+          <div class="passo"><div class="num">1</div><div>
+            <div class="tit">Conecte a sua live</div>
+            <div class="desc">Digite o seu @ do TikTok na barra lá em cima e clique <b>Conectar</b>.
+            É o que liga o chat da sua live no jogo.</div>
+          </div></div>
+          <div class="passo"><div class="num">2</div><div>
+            <div class="tit">Escolha o modo do jogo</div>
+            <div class="desc">Clique num dos dois cartões aqui embaixo. A troca vale na hora, sem reiniciar nada.</div>
+          </div></div>
+          <div class="passo"><div class="num">3</div><div>
+            <div class="tit">Aperte Play no Roblox Studio</div>
+            <div class="desc">O launcher já abriu o Studio no lugar certo — é só apertar ▶ Play lá e transmitir essa janela.</div>
+          </div></div>
+        </div>
+
+        <h2>O modo do jogo</h2>
+        <div class="escolha" id="escolhaModo">
+          <div class="opcao" data-modo="multidao">
+            <div class="emoji">👥</div>
+            <div class="tit">Multidão</div>
+            <div class="desc">Quem comenta o nick vira um boneco dançando na grade, com a skin de verdade.
+            Presente entra maior e na frente.</div>
+            <span class="noAr">● NO AR</span>
+          </div>
+          <div class="opcao" data-modo="avaliador">
+            <div class="emoji">⭐</div>
+            <div class="tit">Avaliador de skin</div>
+            <div class="desc">Uma banca dá nota pra skin de quem chega: MOGGER ou MOGGED.
+            A nota é comprada — presente maior, faixa maior.</div>
+            <span class="noAr">● NO AR</span>
+          </div>
+        </div>
+
+        <h2>Agora na live</h2>
+        <div class="cartao"><div id="statusAgora">carregando…</div></div>
+
+        <div class="console-erros" id="consoleErros" hidden>
+          <div class="console-cab">
+            <span class="console-tit">⚠️ <span id="consoleQuantos">0</span> erro(s) desde que abriu</span>
+            <span class="console-botoes">
+              <button type="button" class="mini" id="consoleCopiar">📋 Copiar</button>
+              <button type="button" class="mini" id="consoleLimpar">🧹 Limpar</button>
+            </span>
+          </div>
+          <div class="console-corpo" id="consoleLinhas"></div>
+          <div class="console-pe">Copie e mande no Discord — é o que o suporte precisa para achar o problema.</div>
+        </div>
+      </section>
+
+      <section class="pagina" data-pagina="multidao">
+        <div class="simples">
+          <h1>👥 Multidão</h1>
+          <div class="sub">O essencial do modo multidão. Tudo salva sozinho.
+            <span class="foraDoAr" data-aviso-modo="multidao" hidden style="color:#ffd65c"> — este modo NÃO está no ar;
+            <a href="#" data-ativar-modo="multidao" style="color:var(--acento)">ativar agora</a></span></div>
+
+          <div class="cartao">
+            <div class="tit">🕺 A dança de todo mundo</div>
+            <div class="desc" style="margin-bottom:8px">A formação inteira dança junto. Presente com dança
+            (e a página Músicas) também trocam — vale a última troca.</div>
+            <select data-mescla="geral.danca" style="min-width:260px">
+              <option value="jamal">Jamal Brazil Groove</option>
+              <option value="moonwalk">Michael Jackson Moonwalk</option>
+              <option value="gangnam">Gangnam Style</option>
+              <option value="macarena">Macarena</option>
+            </select>
+          </div>
+
+          <div class="cartao">
+            <div class="tit">🎞️ A formação</div>
+            <div class="desc" style="margin-bottom:10px">Como a multidão se organiza. Trocar reinicia a grade.</div>
+            <div class="escolha" id="escolhaFormacao">
+              <div class="opcao" data-formacao="largo">
+                <div class="emoji">🟦</div>
+                <div class="tit">Larga</div>
+                <div class="desc">Fileiras de 10, multidão espalhada pros lados. O visual clássico.</div>
+                <span class="noAr">● ATIVA</span>
+              </div>
+              <div class="opcao" data-formacao="corredor">
+                <div class="emoji">🟩</div>
+                <div class="tit">Corredor</div>
+                <div class="desc">Fileiras de 5, multidão comprida — quem chega aparece na frente.</div>
+                <span class="noAr">● ATIVA</span>
+              </div>
+            </div>
+            <div style="margin-top:12px">
+              <label class="campo" style="max-width:240px">total de bonecos antes de recomeçar
+                <input type="number" data-mescla="formacao.total" min="4" max="400" step="10"></label>
+            </div>
+          </div>
+
+          <div class="cartao">
+            <div class="tit">💬 O que entra no jogo</div>
+            <div class="desc" style="margin-bottom:6px">Cada participação da live vira um boneco. Desligue o que não quiser.</div>
+            <div class="linhaParticipa">
+              <span class="nome">💬 Comentou o nick</span>
+              <label class="chave"><input type="checkbox" data-mescla-ativo="comentario"><span></span></label>
+            </div>
+            <div class="linhaParticipa">
+              <span class="nome">❤️ Curtiu</span>
+              <span class="extra">1 boneco a cada
+                <input type="number" data-mescla="acoes.curtida.a_cada" min="1" max="100000" step="10"> curtidas</span>
+              <label class="chave"><input type="checkbox" data-mescla-ativo="curtida"><span></span></label>
+            </div>
+            <div class="linhaParticipa">
+              <span class="nome">➕ Seguiu</span>
+              <label class="chave"><input type="checkbox" data-mescla-ativo="seguiu"><span></span></label>
+            </div>
+            <div class="linhaParticipa">
+              <span class="nome">🔁 Compartilhou</span>
+              <label class="chave"><input type="checkbox" data-mescla-ativo="compartilhou"><span></span></label>
+            </div>
+          </div>
+
+          <div class="abrirAvancado">
+            <button class="secundario" data-avancado="/completo?embutido=1">⚙️ Ajustes avançados — câmera, balão do nome, presente por presente…</button>
+          </div>
+        </div>
+        <div class="avancadoCaixa" hidden>
+          <div class="cabAvancado">
+            <button class="secundario" data-voltar="1">← Voltar ao simples</button>
+            <span class="sub" style="margin:0">Tela completa da multidão — aqui tem TUDO, e o Salvar é o daqui de dentro.</span>
+          </div>
+          <iframe class="avancado" title="ajustes avançados da multidão"></iframe>
+        </div>
+      </section>
+
+      <section class="pagina" data-pagina="avaliador">
+        <div class="simples">
+          <h1>⭐ Avaliador de skin</h1>
+          <div class="sub">O essencial do modo avaliador. Tudo salva sozinho.
+            <span class="foraDoAr" data-aviso-modo="avaliador" hidden style="color:#ffd65c"> — este modo NÃO está no ar;
+            <a href="#" data-ativar-modo="avaliador" style="color:var(--acento)">ativar agora</a></span></div>
+
+          <div class="cartao">
+            <div class="tit">⭐ A nota</div>
+            <div class="desc" style="margin-bottom:10px">A nota é comprada: quem só comenta tira até 3;
+            presente maior, faixa maior. Aqui só o número que separa os MOGGERs.</div>
+            <label class="campo" style="max-width:240px">nota pra virar MOGGER
+              <input type="number" data-mescla="avaliador.nota_mogger" min="0" max="1000" step="0.5"></label>
+          </div>
+
+          <div class="cartao">
+            <div class="tit">🏆 O pódio</div>
+            <div class="desc" style="margin-bottom:10px">De tempos em tempos a live para e mostra as maiores notas.
+            0 minutos = desligado.</div>
+            <div style="display:flex; gap:14px; flex-wrap:wrap">
+              <label class="campo">a cada quantos minutos
+                <input type="number" data-mescla="geral.podio_min" min="0" max="120" step="1"></label>
+              <label class="campo">segundos na tela
+                <input type="number" data-mescla="geral.podio_s" min="3" max="60" step="1"></label>
+            </div>
+          </div>
+
+          <div class="cartao">
+            <div class="tit">🕺 A dança do palco</div>
+            <div class="desc" style="margin-bottom:8px">Presente configurado troca a dança da live inteira — e ela fica.
+            Aqui é só a inicial.</div>
+            <select data-mescla="geral.danca" style="min-width:260px">
+              <option value="jamal">Jamal Brazil Groove</option>
+              <option value="moonwalk">Michael Jackson Moonwalk</option>
+              <option value="gangnam">Gangnam Style</option>
+              <option value="macarena">Macarena</option>
+            </select>
+          </div>
+
+          <div class="abrirAvancado">
+            <button class="secundario" data-avancado="/avaliador.html?embutido=1">⚙️ Ajustes avançados — régua da nota, câmera, presente que troca a dança…</button>
+          </div>
+        </div>
+        <div class="avancadoCaixa" hidden>
+          <div class="cabAvancado">
+            <button class="secundario" data-voltar="1">← Voltar ao simples</button>
+            <span class="sub" style="margin:0">Tela completa do avaliador — aqui tem TUDO, e o Salvar é o daqui de dentro.</span>
+          </div>
+          <iframe class="avancado" title="ajustes avançados do avaliador"></iframe>
+        </div>
+      </section>
+
+      <section class="pagina comIframe" data-pagina="musicas">
+        <iframe class="avancado" data-src="/musicas?embutido=1" title="músicas e danças" style="height:calc(100vh - 92px)"></iframe>
+      </section>
+
+      <section class="pagina" data-pagina="audios">
+        <h1>🎙️ Voz &amp; Áudios <span id="vozViva">verificando…</span></h1>
+        <div class="sub">A voz narra a live sozinha: quando a câmera para em alguém, toca uma gravação da
+        categoria certa. Suba arquivos mp3/wav aqui — gravar pelo microfone e as falas por presente ficam
+        no <b>Avançado da Multidão</b>.</div>
+        <div id="caixasAudioSimples"></div>
+      </section>
+
+      <section class="pagina" data-pagina="overlays">
+        <h1>📺 Overlays pro OBS</h1>
+        <div class="sub">Quadros prontos pra pôr por cima do vídeo: no OBS, adicione uma fonte
+        <b>Navegador</b> e cole o link. Eles se atualizam sozinhos durante a live.</div>
+        <div class="cartao" id="listaOverlays">
+          <div class="linkOverlay"><span class="nome">🏆 Ranking geral</span><b data-link="/overlay.html"></b><button class="mini" data-copiar="1">copiar</button></div>
+          <div class="linkOverlay"><span class="nome">✨ Top aura (presentes)</span><b data-link="/rank.html?tipo=aura"></b><button class="mini" data-copiar="1">copiar</button></div>
+          <div class="linkOverlay"><span class="nome">⚡ Top energia (curtidas)</span><b data-link="/rank.html?tipo=energia"></b><button class="mini" data-copiar="1">copiar</button></div>
+        </div>
+      </section>
+
+      <section class="pagina" data-pagina="testar">
+        <h1>🧪 Testar sem live</h1>
+        <div class="sub">Manda pro jogo <b>exatamente</b> o que uma live de verdade mandaria — precisa do
+        Studio em Play pra ver o resultado. Preencha um nick do Roblox pra usar a skin real dessa pessoa.</div>
+        <div class="cartao">
+          <div class="simLinha">
+            <input type="text" id="simNick" placeholder="nick do Roblox (opcional)">
+            <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--texto2)">×combo
+              <input type="number" id="simCombo" min="1" max="300" step="1" value="1" style="width:70px"></label>
+            <span id="simIdentidade">simulando como: 🧪 genérico</span>
+          </div>
+          <div class="simBotoes">
+            <button data-simular="comentario">💬 Comentário</button>
+            <button data-simular="curtida">❤️ Curtida</button>
+            <button data-simular="seguiu">➕ Seguiu</button>
+            <button data-simular="compartilhou">📤 Compartilhou</button>
+          </div>
+          <div class="simBotoes" style="margin-top:8px">
+            <button data-presente="rose" data-moedas="1">🌹 Rosa (1)</button>
+            <button data-presente="doughnut" data-moedas="30">🍩 Rosquinha (30)</button>
+            <button data-presente="sunglasses" data-moedas="199">🕶️ Óculos (199)</button>
+            <button data-presente="galaxy" data-moedas="1000">🌌 Galáxia (1000)</button>
+          </div>
+          <div class="buscaSim">
+            <input type="text" id="buscarSim" placeholder="🔍 Ou busque qualquer presente… (ex.: lion)">
+            <div id="resultadosSim"></div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+<script>
+"use strict";
+/* Os mesmos tokens locais de sempre (127.0.0.1 — ver src/relay/servidor.js). */
+const TOKEN_LEITURA = "pull-local";
+const TOKEN_ESCRITA = "push-local";
+
+const $ = (s) => document.querySelector(s);
+const esc = (t) => String(t == null ? "" : t).replace(/[<>&"]/g, (c) =>
+  ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;" }[c]));
+
+function avisar(msg, tipo) {
+  const el = $("#estado");
+  el.textContent = msg;
+  el.className = tipo || "";
+  clearTimeout(avisar._t);
+  if (tipo === "ok") avisar._t = setTimeout(() => { el.textContent = ""; }, 3000);
+}
+
+/* ───────────── o mini console (o mesmo do painel antigo) ───────────── */
+const ERROS = [];
+const MAX_ERROS = 50;
+function anotarErro(texto) {
+  const hora = new Date().toLocaleTimeString("pt-BR", { hour12: false });
+  ERROS.push({ hora, texto: String(texto ?? "").slice(0, 600) });
+  if (ERROS.length > MAX_ERROS) ERROS.shift();
+  desenharConsole();
+}
+function desenharConsole() {
+  const caixa = $("#consoleErros");
+  caixa.hidden = ERROS.length === 0;
+  $("#consoleQuantos").textContent = String(ERROS.length);
+  const corpo = $("#consoleLinhas");
+  corpo.innerHTML = ERROS.map(
+    (e) => `<div class="console-linha"><span class="console-hora">[${esc(e.hora)}]</span> ${esc(e.texto)}</div>`,
+  ).join("");
+  corpo.scrollTop = corpo.scrollHeight;
+}
+window.addEventListener("error", (e) => {
+  anotarErro((e.message || "erro") + (e.filename ? ` (${e.filename}:${e.lineno})` : ""));
+});
+window.addEventListener("unhandledrejection", (e) => {
+  anotarErro("promessa recusada: " + (e.reason?.message || e.reason || "sem motivo"));
+});
+const fetchOriginal = window.fetch.bind(window);
+window.fetch = async (...args) => {
+  const alvo = typeof args[0] === "string" ? args[0] : args[0]?.url ?? "?";
+  try {
+    const r = await fetchOriginal(...args);
+    if (!r.ok) anotarErro(`${alvo} respondeu ${r.status} ${r.statusText || ""}`.trim());
+    return r;
+  } catch (erro) {
+    anotarErro(`${alvo} falhou: ${erro.message}`);
+    throw erro;
+  }
+};
+$("#consoleCopiar").addEventListener("click", async (e) => {
+  const b = e.currentTarget;
+  const texto = "RatGames — Avatares da Live\npainel: " + location.href +
+    "\nquando: " + new Date().toISOString() + "\n----------------------------------------\n" +
+    ERROS.map((x) => "[" + x.hora + "] " + x.texto).join("\n");
+  try {
+    await navigator.clipboard.writeText(texto);
+    b.textContent = "✅ Copiado";
+  } catch {
+    b.textContent = "aperte Ctrl+C";
+  }
+  setTimeout(() => { b.textContent = "📋 Copiar"; }, 2500);
+});
+$("#consoleLimpar").addEventListener("click", () => {
+  ERROS.length = 0;
+  desenharConsole();
+});
+
+/* ───────────── navegação entre páginas ───────────── */
+function trocarPagina(nome) {
+  for (const b of document.querySelectorAll("#menu [data-pagina]")) {
+    b.classList.toggle("ativa", b.dataset.pagina === nome);
+  }
+  for (const p of document.querySelectorAll(".pagina")) {
+    p.classList.toggle("ativa", p.dataset.pagina === nome);
+  }
+  // iframes carregam TARDE (data-src -> src): abrir o painel não pode baixar
+  // três páginas inteiras que a pessoa talvez nem visite.
+  const pagina = document.querySelector(`.pagina[data-pagina="${nome}"]`);
+  const frame = pagina?.querySelector("iframe[data-src]");
+  if (frame && !frame.src) frame.src = frame.dataset.src;
+  if (nome !== "inicio") carregarConfig(); // volta sincronizado com o avançado
+}
+document.querySelector("#menu").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-pagina]");
+  if (b) trocarPagina(b.dataset.pagina);
+});
+
+/* ───────────── o avançado (iframe da tela completa antiga) ───────────── */
+document.addEventListener("click", (e) => {
+  const abrir = e.target.closest("[data-avancado]");
+  if (abrir) {
+    const secao = abrir.closest(".pagina");
+    const caixa = secao.querySelector(".avancadoCaixa");
+    const frame = caixa.querySelector("iframe");
+    if (!frame.src) frame.src = abrir.dataset.avancado;
+    secao.querySelector(".simples").hidden = true;
+    caixa.hidden = false;
+    return;
+  }
+  const voltar = e.target.closest("[data-voltar]");
+  if (voltar) {
+    const secao = voltar.closest(".pagina");
+    secao.querySelector(".avancadoCaixa").hidden = true;
+    secao.querySelector(".simples").hidden = false;
+    carregarConfig(); // o avançado pode ter mudado o que o simples mostra
+  }
+});
+
+/* ───────────── a config: ler e salvar por MESCLA ─────────────
+   Cada controle simples salva SÓ o próprio campo via /config/mesclar — o
+   que esta tela não mostra, ela não toca (a regra que já salvou os painéis
+   antigos de se apagarem mutuamente). */
+let cfg = null;
+
+function pegar(obj, caminho) {
+  return caminho.split(".").reduce((o, k) => (o == null ? undefined : o[k]), obj);
+}
+function montarMescla(caminho, valor) {
+  const raiz = {};
+  let o = raiz;
+  const partes = caminho.split(".");
+  for (const k of partes.slice(0, -1)) o = o[k] = {};
+  o[partes.at(-1)] = valor;
+  return raiz;
+}
+
+async function mesclar(pedaco, rotulo) {
+  try {
+    const r = await fetch("/config/mesclar", {
+      method: "POST",
+      headers: { "x-token": TOKEN_ESCRITA, "content-type": "application/json" },
+      body: JSON.stringify(pedaco),
+    });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    cfg = (await r.json()).config;
+    pintarConfig();
+    avisar((rotulo || "salvo") + " ✓", "ok");
+  } catch (e) {
+    avisar("não salvou: " + e.message, "erro");
+  }
+}
+
+async function carregarConfig() {
+  try {
+    const r = await fetch("/config", { headers: { "x-token": TOKEN_LEITURA } });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    cfg = await r.json();
+    pintarConfig();
+  } catch (e) {
+    avisar("relay fora do ar? " + e.message, "erro");
+  }
+}
+
+/* ─────────── AS DANÇAS COMPRADAS NO SELETOR DE "TODO MUNDO" ───────────
+ *
+ * Os dois seletores (multidão e avaliador) nasciam com as QUATRO de fábrica
+ * escritas na mão no HTML. Quem comprava uma dança no catálogo só conseguia
+ * usá-la pendurada numa música — aqui ela não aparecia, e a compra parecia
+ * meia compra.
+ *
+ * A dança comprada entra pelo ID DO EMOTE (o relay e o jogo passaram a
+ * aceitar número no lugar da chave). O nome vem do que a página de Músicas
+ * guardou quando a pessoa navegou o catálogo; sem ele, mostra o número — que
+ * é feio, mas é honesto, e some assim que ela abre o catálogo uma vez.
+ *
+ * A conta é a dona da dança, e não o jogo: a mesma compra vale em qualquer
+ * jogo de dança que o launcher venha a ter.
+ */
+async function encherDancasCompradas() {
+  let liberadas = [];
+  let pacote = false;
+  try {
+    const d = await (await fetch("/dancas")).json();
+    liberadas = (d.liberadas || []).map(String);
+    pacote = d.pacote === true;
+  } catch { return; /* relay antigo: fica só com as de fábrica */ }
+
+  /* Com o PACOTE, o que a pessoa pode usar é o catálogo inteiro — e catálogo
+     inteiro não cabe num <select>. Então entram as que ela já viu (as que a
+     página de Músicas guardou), que são as que ela tem motivo de escolher. */
+  let nomes = {};
+  /* A MESMA chave que a página de Músicas grava (`nomesConhecidos` lá). Sem
+     ela o seletor mostraria "dança #104131847054135", que não diz nada. */
+  try { nomes = JSON.parse(localStorage.getItem("ratgames:nomesDeDanca") || "{}"); } catch { /* sem nomes */ }
+  if (pacote) liberadas = [...new Set([...liberadas, ...Object.keys(nomes)])];
+  if (!liberadas.length) return;
+
+  for (const sel of document.querySelectorAll('select[data-mescla="geral.danca"]')) {
+    if (sel.querySelector("optgroup")) continue; // já enchi este
+    const grupo = document.createElement("optgroup");
+    grupo.label = pacote ? "Do seu pacote" : "Compradas";
+    for (const id of liberadas) {
+      const op = document.createElement("option");
+      op.value = id;
+      op.textContent = nomes[id] || ("dança #" + id);
+      grupo.appendChild(op);
+    }
+    sel.appendChild(grupo);
+  }
+  /* Repinta: a config pode já apontar para uma comprada, e antes deste
+     enchimento o <select> não tinha a opção — o valor caía fora e a tela
+     mostrava "Jamal" mesmo com outra dança no ar. */
+  pintarConfig();
+}
+
+function pintarConfig() {
+  if (!cfg) return;
+  // campos soltos (número/select) — não repinta quem está com o foco.
+  for (const el of document.querySelectorAll("[data-mescla]")) {
+    if (el === document.activeElement) continue;
+    const v = pegar(cfg, el.dataset.mescla);
+    if (v !== undefined) el.value = v;
+  }
+  // interruptores de ação
+  for (const el of document.querySelectorAll("[data-mescla-ativo]")) {
+    el.checked = !!pegar(cfg, "acoes." + el.dataset.mesclaAtivo + ".ativo");
+  }
+  // modo no ar
+  const modo = cfg.geral?.modo === "avaliador" ? "avaliador" : "multidao";
+  for (const op of document.querySelectorAll("#escolhaModo .opcao")) {
+    op.classList.toggle("ligada", op.dataset.modo === modo);
+  }
+  $("#seloModo").textContent = modo === "avaliador" ? "⭐ Avaliador" : "👥 Multidão";
+  for (const aviso of document.querySelectorAll("[data-aviso-modo]")) {
+    aviso.hidden = aviso.dataset.avisoModo === modo;
+  }
+  // formação
+  const forma = cfg.formacao?.modo === "corredor" ? "corredor" : "largo";
+  for (const op of document.querySelectorAll("#escolhaFormacao .opcao")) {
+    op.classList.toggle("ligada", op.dataset.formacao === forma);
+  }
+}
+
+document.addEventListener("change", (e) => {
+  const campo = e.target.closest("[data-mescla]");
+  if (campo) {
+    const bruto = campo.tagName === "SELECT" ? campo.value : Number(campo.value);
+    mesclar(montarMescla(campo.dataset.mescla, bruto));
+    return;
+  }
+  const ativo = e.target.closest("[data-mescla-ativo]");
+  if (ativo) {
+    mesclar({ acoes: { [ativo.dataset.mesclaAtivo]: { ativo: ativo.checked } } },
+      ativo.checked ? "ligado" : "desligado");
+  }
+});
+
+// os cartões grandes
+$("#escolhaModo").addEventListener("click", (e) => {
+  const op = e.target.closest(".opcao");
+  if (op) mesclar({ geral: { modo: op.dataset.modo } }, op.dataset.modo === "avaliador" ? "Avaliador no ar" : "Multidão no ar");
+});
+$("#escolhaFormacao").addEventListener("click", (e) => {
+  const op = e.target.closest(".opcao");
+  if (op) mesclar({ formacao: { modo: op.dataset.formacao } }, "formação " + op.dataset.formacao);
+});
+document.addEventListener("click", (e) => {
+  const a = e.target.closest("[data-ativar-modo]");
+  if (a) {
+    e.preventDefault();
+    mesclar({ geral: { modo: a.dataset.ativarModo } }, "modo no ar");
+  }
+});
+
+/* ───────────── "agora na live" (Início) ───────────── */
+const NOMES_DANCAS = { jamal: "Jamal Brazil Groove", moonwalk: "Moonwalk", gangnam: "Gangnam Style", macarena: "Macarena" };
+async function statusAgora() {
+  const pagina = document.querySelector('.pagina[data-pagina="inicio"]');
+  if (!pagina.classList.contains("ativa")) return;
+  const partes = [];
+  try {
+    const d = await (await fetch("/danca")).json();
+    partes.push("🕺 dança: <b>" + esc(NOMES_DANCAS[d.danca] || d.danca || "—") + "</b>");
+  } catch { /* relay fora: o resto avisa */ }
+  try {
+    const m = await (await fetch("/musica")).json();
+    partes.push(m.tocando ? "🎵 tocando: <b>" + esc(m.titulo || "?") + "</b>" : "🎵 música: <b>parada</b>");
+  } catch { /* idem */ }
+  try {
+    const v = await (await fetch("/voz-viva")).json();
+    partes.push((v.quem || []).includes("voz") ? "🎙️ voz: <b>no ar</b>" : "🎙️ voz: <b>fechada</b>");
+  } catch { /* idem */ }
+  $("#statusAgora").innerHTML = partes.join(" &nbsp;·&nbsp; ") || "relay fora do ar";
+}
+setInterval(statusAgora, 3000);
+
+/* ───────────── a live (a mesma lógica do painel antigo) ───────────── */
+const campoLive = $("#liveUser");
+const btnConectar = $("#liveConectar");
+const btnDesconectar = $("#liveDesconectar");
+const estadoLive = $("#liveEstado");
+const semArroba = (u) => String(u).replace(/^@+/, "");
+
+function pintarLive(d) {
+  const ligada = !!d?.ligada;
+  btnDesconectar.hidden = !ligada;
+  btnConectar.textContent = ligada ? "Trocar de @" : "Conectar";
+  if (ligada) {
+    campoLive.value = "@" + d.user;
+    estadoLive.textContent = "🔴 conectando em @" + d.user + " — os presentes entram assim que a live estiver no ar";
+    estadoLive.className = "ok";
+  } else {
+    estadoLive.textContent = "desconectada — sem isto ninguém da live entra no jogo";
+    estadoLive.className = "";
+  }
+}
+async function verLive() {
+  try {
+    const r = await fetch("/live");
+    if (r.status === 404) {
+      // Relay sem launcher (o kit avulso): a live é ligada por fora.
+      $("#barraLive").style.display = "none";
+      return;
+    }
+    pintarLive(await r.json());
+  } catch { /* o console e o estado já avisam */ }
+}
+btnConectar.addEventListener("click", async () => {
+  const user = campoLive.value.trim();
+  if (!user) {
+    estadoLive.textContent = "digite o seu @ primeiro";
+    campoLive.focus();
+    return;
+  }
+  btnConectar.disabled = true;
+  estadoLive.textContent = "ligando a ponte com o TikTok…";
+  try {
+    const r = await fetch("/live", {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-token": TOKEN_ESCRITA },
+      body: JSON.stringify({ user }),
+    });
+    const d = await r.json();
+    if (!r.ok) {
+      const recado = d.erro || "não consegui conectar";
+      estadoLive.textContent = "❌ " + recado;
+      estadoLive.className = "erro";
+      anotarErro("conectar @" + semArroba(user) + ": " + recado);
+    } else pintarLive(d);
+  } catch (e) {
+    estadoLive.textContent = "❌ " + e.message;
+    estadoLive.className = "erro";
+    anotarErro("conectar @" + semArroba(user) + ": " + e.message);
+  } finally {
+    btnConectar.disabled = false;
+  }
+});
+btnDesconectar.addEventListener("click", async () => {
+  btnDesconectar.disabled = true;
+  try {
+    const r = await fetch("/live", { method: "DELETE", headers: { "x-token": TOKEN_ESCRITA } });
+    pintarLive(await r.json());
+  } finally {
+    btnDesconectar.disabled = false;
+  }
+});
+campoLive.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") btnConectar.click();
+});
+
+/* ───────────── voz & áudios (o essencial) ─────────────
+   Upload, ouvir e apagar das categorias principais. Gravar pelo microfone e
+   as falas/músicas POR PRESENTE continuam na tela avançada da multidão. */
+const CATS_SIMPLES = [
+  { cat: "aura", titulo: "✨ Fala pra quem mandou presente", desc: "toca quando a câmera para em quem tem aura" },
+  { cat: "sem_aura", titulo: "💬 Fala pra quem só comentou", desc: "toca quando a câmera para em quem não mandou nada" },
+  { cat: "conversa", titulo: "🗣️ Frases soltas no silêncio", desc: "anti-inatividade: a live nunca fica muda" },
+  { cat: "trilha", titulo: "🎶 Música de fundo", desc: "toca em loop a live inteira" },
+  { cat: "trilha_sixseven", titulo: "🕺 Música do sixseven", desc: "entra durante a dança especial" },
+];
+const EXT_OK = ["mp3", "wav", "ogg", "m4a"];
+const tocador = new Audio();
+let previaTocando = null;
+
+function desenharAudios() {
+  $("#caixasAudioSimples").innerHTML = CATS_SIMPLES.map((c) => `
+    <div class="cxAudio" data-cat="${c.cat}">
+      <div class="cab">
+        <div style="flex:1"><div class="tit">${c.titulo}</div>
+          <div class="conta">${esc(c.desc)}</div></div>
+        <button class="mini" data-acao="arquivo">⬆ subir arquivo</button>
+      </div>
+      <div class="lista"><span class="conta">carregando…</span></div>
+    </div>`).join("");
+}
+async function listarAudios() {
+  let audios = {};
+  try {
+    audios = (await (await fetch("/audios")).json()).audios || {};
+  } catch {
+    return;
+  }
+  for (const { cat } of CATS_SIMPLES) {
+    const caixa = document.querySelector(`.cxAudio[data-cat="${cat}"]`);
+    if (!caixa) continue;
+    const arquivos = audios[cat] || [];
+    caixa.querySelector(".lista").innerHTML = arquivos.length
+      ? arquivos.map((arq, i) => `
+          <span class="ficha${arq === previaTocando ? " tocando" : ""}">
+            <button data-tocar="${esc(arq)}">${arq === previaTocando ? "⏸" : "▶"} ${i + 1}</button>
+            <button data-apagar="${esc(arq)}" title="apagar">✕</button>
+          </span>`).join("")
+      : '<span class="conta" style="font-style:italic">nada aqui ainda — suba um mp3/wav</span>';
+  }
+}
+$("#caixasAudioSimples")?.addEventListener("click", async (e) => {
+  const btn = e.target.closest("button");
+  if (!btn) return;
+  const caixa = btn.closest(".cxAudio");
+  if (btn.dataset.tocar) {
+    const arq = btn.dataset.tocar;
+    tocador.pause();
+    if (previaTocando === arq) {
+      previaTocando = null;
+    } else {
+      previaTocando = arq;
+      tocador.onended = () => { previaTocando = null; listarAudios(); };
+      tocador.src = "/audios/" + encodeURIComponent(arq);
+      tocador.play().catch(() => { previaTocando = null; });
+    }
+    listarAudios();
+    return;
+  }
+  if (btn.dataset.apagar) {
+    await fetch("/audios/" + encodeURIComponent(btn.dataset.apagar), {
+      method: "DELETE", headers: { "x-token": TOKEN_ESCRITA },
+    });
+    listarAudios();
+    return;
+  }
+  if (btn.dataset.acao === "arquivo") {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "audio/*";
+    input.multiple = true;
+    input.onchange = async () => {
+      let subiu = 0;
+      for (const f of input.files) {
+        const ext = (f.name.split(".").pop() || "").toLowerCase();
+        if (!EXT_OK.includes(ext)) { avisar(f.name + ": use mp3/wav/ogg/m4a", "erro"); continue; }
+        if (f.size > 25_000_000) { avisar(f.name + ": máx 25MB", "erro"); continue; }
+        try {
+          const r = await fetch("/audios/" + caixa.dataset.cat + "?ext=" + ext, {
+            method: "POST", headers: { "x-token": TOKEN_ESCRITA }, body: f,
+          });
+          if (!r.ok) throw new Error("HTTP " + r.status);
+          subiu += 1;
+        } catch (err) {
+          avisar(f.name + ": falhou (" + err.message + ")", "erro");
+        }
+      }
+      if (subiu) { avisar(subiu + " arquivo(s) no lugar", "ok"); listarAudios(); }
+    };
+    input.click();
+  }
+});
+const seloVoz = $("#vozViva");
+async function verVoz() {
+  try {
+    const d = await (await fetch("/voz-viva")).json();
+    const temVoz = (d.quem || []).includes("voz");
+    seloVoz.textContent = temVoz ? "🔊 no ar" : "⚠️ fechada";
+    seloVoz.classList.toggle("viva", temVoz);
+  } catch { /* o topo avisa */ }
+}
+setInterval(verVoz, 5000);
+
+/* ───────────── overlays ───────────── */
+for (const b of document.querySelectorAll("#listaOverlays [data-link]")) {
+  b.textContent = location.origin + b.dataset.link;
+}
+$("#listaOverlays").addEventListener("click", (e) => {
+  const btn = e.target.closest("[data-copiar]");
+  if (!btn) return;
+  const link = btn.closest(".linkOverlay").querySelector("[data-link]").textContent;
+  navigator.clipboard.writeText(link).then(
+    () => avisar("link copiado", "ok"),
+    () => avisar("não consegui copiar", "erro"));
+});
+
+/* ───────────── testar sem live (o simulador de sempre) ───────────── */
+let catalogo = [];
+async function carregarCatalogo() {
+  try {
+    catalogo = (await (await fetch("/presentes")).json()).presentes || [];
+  } catch {
+    catalogo = [];
+  }
+}
+let identidadeSim = null;
+async function resolverIdentidadeSim() {
+  const nick = $("#simNick").value.trim();
+  const lbl = $("#simIdentidade");
+  if (!nick) {
+    identidadeSim = null;
+    lbl.textContent = "simulando como: 🧪 genérico";
+    return;
+  }
+  if (identidadeSim && identidadeSim.nick === nick) return;
+  lbl.textContent = `resolvendo "${nick}"…`;
+  try {
+    const r = await fetch("/resolver?nick=" + encodeURIComponent(nick), { headers: { "x-token": TOKEN_ESCRITA } });
+    const d = await r.json();
+    identidadeSim = { nick, roblox_id: Number(d.roblox_id) || 0 };
+    lbl.textContent = identidadeSim.roblox_id > 0
+      ? `simulando como: ${nick} ✅ (avatar real)`
+      : `simulando como: ${nick} ⚠️ (nick não achado — genérico)`;
+  } catch {
+    identidadeSim = { nick, roblox_id: 0 };
+    lbl.textContent = `simulando como: ${nick} ⚠️ (relay falhou)`;
+  }
+}
+$("#simNick").addEventListener("change", resolverIdentidadeSim);
+const comboSim = () => Math.max(1, Math.min(300, Math.floor(Number($("#simCombo").value) || 1)));
+
+async function simular(corpo, rotulo) {
+  try {
+    const r = await fetch("/simular", {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-token": TOKEN_ESCRITA },
+      body: JSON.stringify(corpo),
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.erro || ("HTTP " + r.status));
+    avisar(`🧪 ${rotulo} — precisa do jogo em Play`, "ok");
+  } catch (e) {
+    avisar("falha ao simular (" + e.message + ")", "erro");
+  }
+}
+function identidade() {
+  return {
+    nickname: identidadeSim ? identidadeSim.nick : "🧪 Painel",
+    roblox_id: identidadeSim ? identidadeSim.roblox_id : 0,
+    nick_roblox: identidadeSim ? identidadeSim.nick : "",
+  };
+}
+document.querySelectorAll("[data-simular]").forEach((btn) => {
+  btn.addEventListener("click", async () => {
+    await resolverIdentidadeSim();
+    const vezes = comboSim();
+    simular({ tipo: btn.dataset.simular, vezes, distintos: true, ...identidade() },
+      btn.textContent.trim() + (vezes > 1 ? ` ×${vezes}` : ""));
+  });
+});
+document.querySelectorAll("[data-presente]").forEach((btn) => {
+  btn.addEventListener("click", async () => {
+    await resolverIdentidadeSim();
+    const vezes = comboSim();
+    simular({
+      tipo: "presente", presente: btn.dataset.presente,
+      moedas: Number(btn.dataset.moedas) || 0, vezes, ...identidade(),
+    }, btn.textContent.trim() + (vezes > 1 ? ` ×${vezes}` : ""));
+  });
+});
+const caixaBuscaSim = $("#buscarSim");
+const divResultadosSim = $("#resultadosSim");
+function renderBuscaSim() {
+  const termo = caixaBuscaSim.value.trim().toLowerCase();
+  if (!termo) { divResultadosSim.style.display = "none"; return; }
+  const achados = catalogo
+    .filter((p) => p.nome.includes(termo) || p.rotulo.toLowerCase().includes(termo))
+    .slice(0, 20);
+  divResultadosSim.innerHTML = achados.length
+    ? achados.map((p) => `
+        <div class="item" data-nome="${esc(p.nome)}" data-moedas="${p.moedas ?? 0}">
+          ${p.imagem ? `<img src="${p.imagem}" loading="lazy" alt="">` : `<span style="width:30px"></span>`}
+          <span>${esc(p.rotulo)}</span>
+          <span class="m">🪙 ${p.moedas ?? "?"}</span>
+        </div>`).join("")
+    : `<div class="item">nenhum presente com "${esc(termo)}"</div>`;
+  divResultadosSim.style.display = "block";
+  divResultadosSim.querySelectorAll(".item[data-nome]").forEach((el) => {
+    el.onclick = async () => {
+      await resolverIdentidadeSim();
+      const vezes = comboSim();
+      simular({
+        tipo: "presente", presente: el.dataset.nome,
+        moedas: Number(el.dataset.moedas) || 0, vezes, ...identidade(),
+      }, `presente "${el.dataset.nome}"` + (vezes > 1 ? ` ×${vezes}` : ""));
+      caixaBuscaSim.value = "";
+      divResultadosSim.style.display = "none";
+    };
+  });
+}
+caixaBuscaSim.addEventListener("input", renderBuscaSim);
+caixaBuscaSim.addEventListener("focus", renderBuscaSim);
+document.addEventListener("click", (e) => {
+  if (!e.target.closest(".buscaSim")) divResultadosSim.style.display = "none";
+});
+
+/* ───────────── arranque ───────────── */
+desenharAudios();
+carregarConfig();
+encherDancasCompradas();
+carregarCatalogo();
+verLive();
+verVoz();
+listarAudios();
+statusAgora();
+setInterval(verLive, 5000);
+// A config muda por fora (tela avançada, presente que troca dança): mantém o
+// simples em dia sem pisar em quem está digitando (pintarConfig pula o foco).
+setInterval(carregarConfig, 8000);
+</script>
+</body>
+</html>

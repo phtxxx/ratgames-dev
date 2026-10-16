@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Rank — Avatares no Palco</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 100%; height: 100%; background: transparent; overflow: hidden;
+    font-family: "Segoe UI", system-ui, sans-serif; color: #fff; }
+
+  #painel { position: fixed; top: 16px; left: 16px; width: 330px; }
+
+  #titulo { font-size: 15px; font-weight: 900; letter-spacing: .14em;
+    text-transform: uppercase; color: var(--tom, #ffd54a); margin-bottom: 8px;
+    text-shadow: 0 2px 6px rgba(0,0,0,.9); }
+
+  #cards { display: flex; flex-direction: column; gap: 7px; }
+
+  .card { display: flex; align-items: center; gap: 10px;
+    background: rgba(12,14,22,.88); border: 1.5px solid rgba(255,255,255,.12);
+    border-radius: 13px; padding: 6px 11px; box-shadow: 0 6px 18px rgba(0,0,0,.45); }
+
+  .card.r1 { border: 2.5px solid var(--tom, #ffd54a); padding: 9px 11px;
+    background: linear-gradient(100deg, var(--fundo1, rgba(80,60,6,.92)), rgba(24,20,8,.88) 55%);
+    animation: pulsar 1.8s ease-in-out infinite; }
+  @keyframes pulsar {
+    0%, 100% { box-shadow: 0 0 14px var(--brilho, rgba(255,213,74,.35)), 0 6px 18px rgba(0,0,0,.5); }
+    50% { box-shadow: 0 0 30px var(--brilhoForte, rgba(255,213,74,.7)), 0 6px 18px rgba(0,0,0,.5); }
+  }
+  .card.r2 { border: 2px solid #cdd4e1; }
+  .card.r3 { border: 2px solid #de914b; }
+
+  .rank { min-width: 28px; text-align: center; font-weight: 900; font-size: 16px;
+    color: #aab3c5; text-shadow: 0 1px 3px rgba(0,0,0,.8); }
+  .r1 .rank { font-size: 23px; }
+
+  .molde { position: relative; flex: 0 0 auto; width: 42px; height: 42px;
+    border-radius: 50%; background: #232733; border: 2px solid rgba(255,255,255,.25); }
+  .r1 .molde { width: 56px; height: 56px; border-color: var(--tom, #ffd54a); }
+  .r2 .molde { border-color: #cdd4e1; }
+  .r3 .molde { border-color: #de914b; }
+  .molde img, .molde .inicial { width: 100%; height: 100%; border-radius: 50%;
+    object-fit: cover; display: grid; place-items: center;
+    font-weight: 900; font-size: 18px; color: #dfe6f3; }
+
+  /* a coroa do 1º */
+  .coroa { position: absolute; top: -19px; left: 50%; font-size: 22px;
+    animation: coroar 2.2s ease-in-out infinite;
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,.7)); }
+  @keyframes coroar {
+    0%, 100% { transform: translateX(-50%) rotate(-8deg) translateY(0); }
+    50% { transform: translateX(-50%) rotate(8deg) translateY(-3px); }
+  }
+
+  .info { flex: 1; min-width: 0; }
+  .nome { font-weight: 800; font-size: 14px; color: #fff; white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis; text-shadow: 0 1px 3px rgba(0,0,0,.8); }
+  .r1 .nome { font-size: 17px; color: var(--nome1, #ffe9a8); }
+  .pontos { font-size: 12px; font-weight: 700; color: var(--tom, #9fe8ff);
+    text-shadow: 0 1px 3px rgba(0,0,0,.8); }
+  .r1 .pontos { font-size: 14px; }
+
+  /* 6º em diante: linha compacta, sem foto — senão a lista come a tela */
+  .card.mini { padding: 3px 11px; background: rgba(12,14,22,.62); border-radius: 10px; }
+  .card.mini .nome { font-size: 12.5px; font-weight: 700; }
+  .card.mini .pontos { font-size: 11.5px; }
+  .card.mini .rank { font-size: 12.5px; min-width: 24px; }
+  .card.mini .molde { display: none; }
+
+  /* subiu de posição: pisca verde. É a graça de acompanhar a disputa. */
+  .card.subiu { animation: subir .8s ease; }
+  @keyframes subir {
+    0% { transform: translateX(-14px); border-color: #3fb950; }
+    60% { border-color: #3fb950; }
+    100% { transform: translateX(0); }
+  }
+
+  #vazio { color: rgba(255,255,255,.55); font-size: 13px; padding: 8px 2px; }
+</style>
+</head>
+<body>
+  <div id="painel">
+    <div id="titulo">…</div>
+    <div id="cards"></div>
+    <div id="vazio">esperando a galera participar…</div>
+  </div>
+
+<script>
+const TOKEN = "pull-local";
+const divCards = document.getElementById("cards");
+const divVazio = document.getElementById("vazio");
+const divTitulo = document.getElementById("titulo");
+
+/* Qual dos dois quadros esta janela é. Um valor inventado cai em "aura":
+   melhor mostrar o quadro errado que uma tela preta no meio da live. */
+const TIPO = new URLSearchParams(location.search).get("tipo") === "energia"
+  ? "energia" : "aura";
+
+/* Cada quadro tem sua cor, pra dar pra distinguir os dois de relance quando
+   estiverem os dois na tela. Dourado pra quem apoia, azul-elétrico pra quem
+   participa. */
+const TONS = {
+  aura: { tom: "#ffd54a", fundo1: "rgba(80,60,6,.92)", nome1: "#ffe9a8",
+          brilho: "rgba(255,213,74,.35)", brilhoForte: "rgba(255,213,74,.7)" },
+  energia: { tom: "#4ad9ff", fundo1: "rgba(6,58,80,.92)", nome1: "#a8ecff",
+             brilho: "rgba(74,217,255,.35)", brilhoForte: "rgba(74,217,255,.7)" },
+};
+for (const [k, v] of Object.entries(TONS[TIPO])) {
+  document.documentElement.style.setProperty("--" + k, v);
+}
+
+const esc = (s) => String(s ?? "").replace(/[<>&]/g,
+  (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" }[c]));
+
+/** 1.234 vira "1.2k": o cartão é estreito e o número cresce rápido numa live
+ *  boa — sem isto o nome era espremido até sumir. */
+function fmt(n) {
+  n = Number(n) || 0;
+  if (n >= 1000000) return (n / 1000000).toFixed(1).replace(".0", "") + "M";
+  if (n >= 1000) return (n / 1000).toFixed(1).replace(".0", "") + "k";
+  return String(n);
+}
+
+// Um cartão POR POSIÇÃO, reaproveitado: recriar tudo a cada 2s faria as
+// imagens piscarem (o navegador rebaixaria e rebuscaria cada foto).
+const cards = [];
+function montarCard() {
+  const el = document.createElement("div");
+  el.className = "card";
+  el.innerHTML = `
+    <div class="rank"></div>
+    <div class="molde"></div>
+    <div class="info">
+      <div class="nome"></div>
+      <div class="pontos"></div>
+    </div>`;
+  divCards.appendChild(el);
+  return el;
+}
+
+const posicaoAnterior = new Map(); // nick -> posição, pra saber quem subiu
+
+/* Título, sufixo e quantos aparecem vêm do painel. Relidos de tempos em
+   tempos, e não só uma vez: o streamer mexe no painel COM O OBS ABERTO, e
+   um overlay que só lê a config no carregamento exigiria fechar e reabrir a
+   fonte de navegador pra ver a mudança. */
+let TOPO = 5;
+let SUFIXO = "";
+
+async function lerConfig() {
+  try {
+    const c = await (await fetch("/config", { headers: { "x-token": TOKEN } })).json();
+    const o = c.overlay || {};
+    TOPO = Math.max(1, Math.min(10, Number(
+      TIPO === "aura" ? o.top_aura : o.top_energia) || 5));
+    SUFIXO = String((TIPO === "aura" ? o.sufixo_aura : o.sufixo_energia) ?? "");
+    divTitulo.textContent = String(
+      (TIPO === "aura" ? o.titulo_aura : o.titulo_energia) ?? "TOP DA LIVE");
+  } catch {
+    // relay fora: mantém o que já está na tela
+  }
+}
+
+function preencher(el, d, rank) {
+  const mini = rank > 5;
+  el.className = "card" + (rank <= 3 ? " r" + rank : "") + (mini ? " mini" : "");
+  // A POSIÇÃO é `order` do flexbox — sem cálculo de pixel em JS.
+  el.style.order = String(rank);
+  el.style.display = "";
+  el.querySelector(".rank").textContent =
+    rank <= 3 ? ["🥇", "🥈", "🥉"][rank - 1] : rank + "º";
+  el.querySelector(".nome").textContent = d.nick || "?";
+  el.querySelector(".pontos").textContent = fmt(d.pontos) + " " + SUFIXO;
+
+  const molde = el.querySelector(".molde");
+  if (!mini) {
+    // Só redesenha quando a PESSOA muda: senão a foto recarregaria a cada
+    // atualização e ficaria piscando.
+    const rid = Number(d.rid) || 0;
+    if (molde.dataset.rid !== String(rid)) {
+      molde.dataset.rid = String(rid);
+      const inicial = esc((d.nick || "?")[0]).toUpperCase();
+      molde.innerHTML = rid > 0
+        ? `<img src="https://www.roblox.com/headshot-thumbnail/image?userId=${rid}&width=150&height=150&format=png"
+                onerror="this.outerHTML='<div class=inicial>${inicial}</div>'">`
+        : `<div class="inicial">${inicial}</div>`;
+    }
+    const coroa = molde.querySelector(".coroa");
+    if (rank === 1 && !coroa) {
+      const c = document.createElement("div");
+      c.className = "coroa";
+      c.textContent = "👑";
+      molde.appendChild(c);
+    } else if (rank !== 1 && coroa) {
+      coroa.remove();
+    }
+  }
+
+  const antes = posicaoAnterior.get(d.nick);
+  if (antes !== undefined && rank < antes) {
+    el.classList.remove("subiu");
+    void el.offsetWidth; // reinicia a animação
+    el.classList.add("subiu");
+  }
+  posicaoAnterior.set(d.nick, rank);
+}
+
+async function atualizar() {
+  let lista = [];
+  try {
+    const d = await (await fetch("/ranking", { headers: { "x-token": TOKEN } })).json();
+    lista = (d[TIPO] || []).slice(0, TOPO);
+  } catch (e) {
+    return; // relay fora: mantém o que está na tela em vez de piscar vazio
+  }
+  divVazio.style.display = lista.length ? "none" : "";
+  for (let i = 0; i < 10; i++) {
+    if (!cards[i]) cards[i] = montarCard();
+    if (i < lista.length) preencher(cards[i], lista[i], i + 1);
+    else cards[i].style.display = "none";
+  }
+}
+
+lerConfig().then(atualizar);
+setInterval(atualizar, 2000);
+setInterval(lerConfig, 5000);
+</script>
+</body>
+</html>

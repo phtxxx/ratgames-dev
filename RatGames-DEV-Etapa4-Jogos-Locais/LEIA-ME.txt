@@ -1,0 +1,11 @@
+RAT Games DEV - Etapa 4: teste de jogos HTML locais
+
+1. Extraia a pasta RatGames-DEV-Etapa4-Jogos-Locais dentro de:
+   C:\Users\Phili\Desktop\RatGames-DEV\codigo-fonte
+2. Abra CMD em codigo-fonte e execute:
+   npx --yes electron ".\RatGames-DEV-Etapa4-Jogos-Locais\dev-catalogo"
+3. Clique em "Abrir jogo HTML local" e selecione um index.html de um jogo HTML de teste.
+
+A biblioteca com imagens e videos depende da pasta .build-src/ui/videos na pasta codigo-fonte.
+Nao altera app.asar, login ou licencas. Jogos originais, Roblox e TikTok LIVE nao estao integrados.
+A janela de jogo HTML usa nodeIntegration=false, sandbox=true e contextIsolation=true.

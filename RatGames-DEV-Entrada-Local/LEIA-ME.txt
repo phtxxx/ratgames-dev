@@ -1,0 +1,15 @@
+RAT Games DEV — Correção das imagens e prévias
+
+1. Feche o catálogo DEV.
+2. Extraia este ZIP dentro de:
+   C:\Users\Phili\Desktop\RatGames-DEV\codigo-fonte\RatGames-DEV-Entrada-Local
+3. Aceite substituir dev-catalogo\dev.js.
+4. Abra CMD em C:\Users\Phili\Desktop\RatGames-DEV\codigo-fonte
+5. Execute:
+   npx --yes electron ".\RatGames-DEV-Entrada-Local\dev-catalogo"
+
+O arquivo corrige o caminho de mídia de ../.build-src para ../../.build-src,
+compatível com a estrutura que você mostrou.
+
+Não modifica app.asar, autenticação ou licença.
+Ainda é catálogo de prévias, não execução de partidas.
