@@ -25,7 +25,7 @@ else {
   for (const dep of ['electron-updater', 'tiktok-live-connector', 'ws']) {
     check('Dependência declarada ' + dep, Boolean(pkg.dependencies && pkg.dependencies[dep]));
   }
-  check('node_modules local', fs.existsSync(path.join(root, 'node_modules')), 'opcional no GitHub; necessário para execução local');
+  console.log('[INFO] node_modules local: ' + (fs.existsSync(path.join(root, 'node_modules')) ? 'presente' : 'ausente (normal no GitHub; instale dependências no computador)'));
   const media = path.join(root, 'resources', 'jogos');
   check('Recursos de jogos', fs.existsSync(media), 'verificar também arquivos de cada jogo');
   if (fs.existsSync(path.join(root, main))) {
